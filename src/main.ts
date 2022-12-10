@@ -1,23 +1,24 @@
-import './style.css';
-import typescriptLogo from './typescript.svg';
-import { setupCounter } from './counter';
+import * as Dropbox from './dropbox/dropbox';
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <div>
-    <a href="https://vitejs.dev" target="_blank">
-      <img src="/vite.svg" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://www.typescriptlang.org/" target="_blank">
-      <img src="${typescriptLogo}" class="logo vanilla" alt="TypeScript logo" />
-    </a>
-    <h1>Vite + TypeScript</h1>
-    <div class="card">
-      <button id="counter" type="button"></button>
-    </div>
-    <p class="read-the-docs">
-      Click on the Vite and TypeScript logos to learn more
-    </p>
-  </div>
-`;
+var auth_app: string | null;
+var auth_token: string | null;
+function hasAuthData() {
+  auth_app = window.localStorage.getItem('auth_app');
+  auth_token = window.localStorage.getItem('auth_token');
+  return !!auth_app && !!auth_token;
+}
 
-setupCounter(document.querySelector<HTMLButtonElement>('#counter')!);
+if (hasAuthData()) {
+  if (auth_app === 'dropbox') {
+    Dropbox.dropbox_login(auth_token);
+  }
+} else {
+  const queryString = window.location.search; // Returns:'?q=123'
+  // Further parsing:
+  const params = new URLSearchParams(queryString);
+  // params.get('q') is the number 123
+  if (params.get('state') == 'auth_dropbox') {
+    var code = params.get('code');
+    if (!!code) Dropbox.dropbox_login_code(code);
+  }
+}
