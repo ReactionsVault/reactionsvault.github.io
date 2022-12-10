@@ -1,4 +1,11 @@
-import * as Dropbox from './dropbox/dropbox';
+import { dropbox_login_code, dropbox_login } from './dropbox/dropbox';
+
+function logIn_Callback(logged_in: boolean) {
+  if (logged_in) {
+    const dropboxSignIn = document.getElementById('dropbox-sign-in');
+    dropboxSignIn.disabled = true;
+  }
+}
 
 var auth_app: string | null;
 var auth_token: string | null;
@@ -9,16 +16,17 @@ function hasAuthData() {
 }
 
 if (hasAuthData()) {
-  if (auth_app === 'dropbox') {
-    Dropbox.dropbox_login(auth_token);
+  switch (auth_app) {
+    case 'dropbox':
+      dropbox_login(auth_token, logIn_Callback);
+      break;
   }
 } else {
-  const queryString = window.location.search; // Returns:'?q=123'
-  // Further parsing:
+  const queryString = window.location.search; // Returns:'?q=123'// params.get('q') is the number 123
   const params = new URLSearchParams(queryString);
-  // params.get('q') is the number 123
-  if (params.get('state') == 'auth_dropbox') {
+
+  if (params.get('state') === 'auth_dropbox') {
     var code = params.get('code');
-    if (!!code) Dropbox.dropbox_login_code(code);
+    if (!!code) dropbox_login_code(code, logIn_Callback);
   }
 }

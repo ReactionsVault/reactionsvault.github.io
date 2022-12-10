@@ -51,7 +51,7 @@ function dropbox_auth() {
     .catch((error?: any) => console.error(error));
 }
 
-export function dropbox_login(access_token: string) {
+export function dropbox_login(access_token: string, callback: Function) {
   if (dbxAuth == null) {
     dropbox_init_dbxAuth();
   }
@@ -63,10 +63,18 @@ export function dropbox_login(access_token: string) {
 
   window.localStorage.setItem('auth_app', 'dropbox');
   window.localStorage.setItem('auth_token', access_token);
-  console.log('logged in');
+
+  dbx
+    .usersGetCurrentAccount()
+    .then((response) => {
+      callback(!!response.result.account_id);
+    })
+    .catch((error) => {
+      console.error('[Dropbox] Error checking user login status:', error);
+    });
 }
 
-export function dropbox_login_code(code: string) {
+export function dropbox_login_code(code: string, callback: Function) {
   if (dbxAuth == null) {
     dropbox_init_dbxAuth();
   }
@@ -75,7 +83,8 @@ export function dropbox_login_code(code: string) {
   if (!!sessionCode) {
     dbxAuth.setCodeVerifier(sessionCode);
     dbxAuth.getAccessTokenFromCode(REDIRECT_URI, code).then((response) => {
-      dropbox_login(response.result.access_token);
+      dropbox_login(response.result.access_token, callback);
     });
   }
+  return false;
 }
