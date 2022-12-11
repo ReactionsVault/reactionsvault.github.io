@@ -1,15 +1,17 @@
-import * as Dropbox from 'dropbox';
+import * as DropboxAPI from 'dropbox';
 
+export var DROPBOX_APP = 'dropbox';
+export var DROPBOX_STATE = 'auth_dropbox';
 var REDIRECT_URI = 'http://localhost:5173/'; //you need this for redirection, otherwise it just shows Dropbox page with key that you need to enter in app
 var CLIENT_ID = 'n5f5arc8a4aa3fq'; //app key
-var dbxAuth: Dropbox.DropboxAuth;
-var dbx: Dropbox.Dropbox;
+var dbxAuth: DropboxAPI.DropboxAuth;
+export var dbx: DropboxAPI.Dropbox;
 
 const dropboxSignIn = document.getElementById('dropbox-sign-in');
 if (dropboxSignIn != null) dropboxSignIn.addEventListener('click', dropbox_auth);
 
 function dropbox_init_dbxAuth() {
-  dbxAuth = new Dropbox.DropboxAuth({
+  dbxAuth = new DropboxAPI.DropboxAuth({
     clientId: CLIENT_ID,
   });
 }
@@ -19,7 +21,7 @@ function dropbox_auth() {
   dbxAuth
     .getAuthenticationUrl(
       REDIRECT_URI, // redirectUri - A URL to redirect the user to after authenticating. This must be added to your app through the admin interface.
-      'auth_dropbox', // state - State that will be returned in the redirect URL to help prevent cross site scripting attacks.
+      DROPBOX_STATE, // state - State that will be returned in the redirect URL to help prevent cross site scripting attacks.
       'code', // authType - auth type, defaults to 'token', other option is 'code'
 
       /* tokenAccessTyp - type of token to request.  From the following:
@@ -57,18 +59,24 @@ export function dropbox_login(access_token: string, callback: Function) {
   }
 
   dbxAuth.setAccessToken(access_token);
-  dbx = new Dropbox.Dropbox({
+  dbx = new DropboxAPI.Dropbox({
     auth: dbxAuth,
   });
 
-  window.localStorage.setItem('auth_app', 'dropbox');
-  window.localStorage.setItem('auth_token', access_token);
-
   dbx
     .usersGetCurrentAccount()
-    .then((response) => {
-      callback(!!response.result.account_id);
-    })
+    .then(
+      (response) => {
+        if (!!response.result.account_id) {
+          callback(DROPBOX_APP, access_token);
+        } else {
+          callback(null, null);
+        }
+      },
+      () => {
+        callback(null, null);
+      }
+    )
     .catch((error) => {
       console.error('[Dropbox] Error checking user login status:', error);
     });
@@ -86,5 +94,4 @@ export function dropbox_login_code(code: string, callback: Function) {
       dropbox_login(response.result.access_token, callback);
     });
   }
-  return false;
 }

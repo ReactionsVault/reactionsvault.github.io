@@ -1,9 +1,50 @@
-import { dropbox_login_code, dropbox_login } from './dropbox/dropbox';
+import { DROPBOX_APP, DROPBOX_STATE, dropbox_login_code, dropbox_login } from './dropbox/dropbox';
+import { DropboxFS } from './dropbox/dropbox_fs';
+import { FileStatus } from './interfaces/fs_interface';
 
-function logIn_Callback(logged_in: boolean) {
-  if (logged_in) {
+var fs: DropboxFS | null = null;
+
+const DB_NAME = '/reactionsvault_db';
+async function loadDataBase(): Promise<void> {
+  var db_hash: string = window.localStorage.getItem('db_hash');
+  if (!!db_hash) {
+    var test_db_hash = await fs?.getFileHash(DB_NAME);
+    if (db_hash !== test_db_hash) {
+    }
+  } else {
+    var db_file = await fs?.downloadFile(DB_NAME);
+    switch (db_file?.status) {
+      case FileStatus.Success:
+        break;
+      case FileStatus.NotFound:
+        await fs?.uploadFile(DB_NAME, { status: FileStatus.Success, content: { test: 'abs' } });
+        db_hash = await fs?.getFileHash(DB_NAME);
+        window.localStorage.setItem('db_hash', db_hash);
+        break;
+    }
+  }
+}
+
+function logIn_Callback(app: string | null, access_token: string | null) {
+  if (!!app && !!access_token) {
+    switch (app) {
+      case DROPBOX_APP:
+        fs = new DropboxFS();
+        break;
+    }
+
     const dropboxSignIn = document.getElementById('dropbox-sign-in');
     dropboxSignIn.disabled = true;
+
+    loadDataBase();
+  }
+}
+
+function logInCode_Callback(app: string | null, access_token: string | null) {
+  if (!!app && !!access_token) {
+    window.localStorage.setItem('auth_app', app);
+    window.localStorage.setItem('auth_token', access_token);
+    logIn_Callback(app, access_token);
   }
 }
 
@@ -17,7 +58,7 @@ function hasAuthData() {
 
 if (hasAuthData()) {
   switch (auth_app) {
-    case 'dropbox':
+    case DROPBOX_APP:
       dropbox_login(auth_token, logIn_Callback);
       break;
   }
@@ -25,8 +66,8 @@ if (hasAuthData()) {
   const queryString = window.location.search; // Returns:'?q=123'// params.get('q') is the number 123
   const params = new URLSearchParams(queryString);
 
-  if (params.get('state') === 'auth_dropbox') {
+  if (params.get('state') === DROPBOX_STATE) {
     var code = params.get('code');
-    if (!!code) dropbox_login_code(code, logIn_Callback);
+    if (!!code) dropbox_login_code(code, logInCode_Callback);
   }
 }
