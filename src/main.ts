@@ -1,6 +1,6 @@
 import { DROPBOX_APP, DROPBOX_STATE, dropbox_login_code, dropbox_login } from './dropbox/dropbox';
 import { DropboxFS } from './dropbox/dropbox_fs';
-import { FileStatus } from './interfaces/fs_interface';
+import { FileSystemStatus } from './interfaces/fs_interface';
 
 var fs: DropboxFS | null = null;
 
@@ -10,22 +10,32 @@ async function loadDataBase(): Promise<void> {
   if (!!db_hash) {
     var test_db_hash = await fs?.getFileHash(DB_NAME);
     if (db_hash !== test_db_hash) {
+    } else {
+      var db_file = await fs?.downloadFile(DB_NAME);
+      console.log(await db_file?.content.text());
     }
   } else {
-    var db_file = await fs?.downloadFile(DB_NAME);
-    switch (db_file?.status) {
-      case FileStatus.Success:
-        break;
-      case FileStatus.NotFound:
-        await fs?.uploadFile(DB_NAME, { status: FileStatus.Success, content: { test: 'abs' } });
-        db_hash = await fs?.getFileHash(DB_NAME);
-        window.localStorage.setItem('db_hash', db_hash);
-        break;
+    try {
+      var db_file = await fs?.downloadFile(DB_NAME);
+    } catch (error) {
+      if (!!error.error.status) {
+        switch (error.error.status) {
+          case FileSystemStatus.NotFound:
+            await fs?.uploadFile(DB_NAME, { content: 'test' });
+            db_hash = await fs?.getFileHash(DB_NAME);
+            window.localStorage.setItem('db_hash', db_hash);
+            break;
+          default:
+            throw Error(error);
+        }
+      } else {
+        throw Error(error);
+      }
     }
   }
 }
 
-function logIn_Callback(app: string | null, access_token: string | null) {
+async function logIn_Callback(app: string | null, access_token: string | null) {
   if (!!app && !!access_token) {
     switch (app) {
       case DROPBOX_APP:

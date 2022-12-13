@@ -1,44 +1,39 @@
 import * as DropboxAPI from 'dropbox';
-import { dbx } from './dropbox';
-import { FSInterface, File, FileStatus } from '../interfaces/fs_interface';
+import { dbx, DropboxError } from './dropbox';
+import { FSInterface, File, FileSystemStatus } from '../interfaces/fs_interface';
 
-function HandleLookupError(path: string, lookupError: DropboxAPI.LookupError): File {
+function HandleLookupError(path: string, lookupError: DropboxAPI.LookupError) {
   switch (lookupError['.tag']) {
     case 'not_found': //LookupErrorNotFound
-      console.info('[Dropbox] HandleLookupError file not found: ' + path);
-      return { status: FileStatus.NotFound };
-      break;
+      throw DropboxError({ status: FileSystemStatus.NotFound, message: 'HandleLookupError file not found: ' + path });
     default:
-      throw TypeError('[Dropbox] Unsupported LookupError type. File: ' + path);
+      throw DropboxError('Unsupported LookupError type. File: ' + path);
   }
 }
 
-function HandleDownloadError(path: string, downloadError: DropboxAPI.DownloadError): File {
+function HandleDownloadError(path: string, downloadError: DropboxAPI.DownloadError) {
   switch (downloadError['.tag']) {
     case 'path': //DownloadErrorPath
-      return HandleLookupError(path, downloadError.path);
+      HandleLookupError(path, downloadError.path);
       break;
     default:
-      throw TypeError('[Dropbox] Unsupported DownloadError type. File: ' + path);
+      throw DropboxError('Unsupported DownloadError type. File: ' + path);
   }
 }
 
 function HandleUploadError(path: string, uploadError: DropboxAPI.UploadError) {
   switch (uploadError['.tag']) {
     default:
-      throw TypeError('[Dropbox] Unsupported UploadError type. File: ' + path);
+      throw DropboxError('Unsupported UploadError type. File: ' + path);
   }
 }
 
-function HandleGetMetadataError(path: string, getMetadataError: DropboxAPI.GetMetadataError): string {
+function HandleGetMetadataError(path: string, getMetadataError: DropboxAPI.GetMetadataError) {
   switch (getMetadataError['.tag']) {
     case 'path': //DownloadErrorPath
       HandleLookupError(path, getMetadataError.path);
-      return '';
-
-      break;
     default:
-      throw TypeError('[Dropbox] Unsupported GetMetadataError type. File: ' + path);
+      throw DropboxError('Unsupported GetMetadataError type. File: ' + path);
   }
 }
 
@@ -52,7 +47,7 @@ export class DropboxFS implements FSInterface {
       if (uploadError.error) {
         HandleUploadError(path, uploadError.error);
       } else {
-        throw TypeError(uploadError);
+        throw DropboxError(uploadError);
       }
     }
   }
@@ -64,13 +59,13 @@ export class DropboxFS implements FSInterface {
   async downloadFile(path: string): Promise<File> {
     try {
       var respond = await dbx.filesDownload({ path });
-      return { status: FileStatus.Success, content: respond };
+      return { content: respond.result.fileBlob };
     } catch (error) {
       var downloadError = error.error;
       if (downloadError.error) {
-        return HandleDownloadError(path, downloadError.error); // promise returns DropboxResponseError<Error<files.DownloadError>> (there is a mistake in index.d.ts)
+        HandleDownloadError(path, downloadError.error); // promise returns DropboxResponseError<Error<files.DownloadError>> (there is a mistake in index.d.ts)
       } else {
-        throw TypeError(downloadError);
+        throw DropboxError(downloadError);
       }
     }
   }
@@ -81,16 +76,19 @@ export class DropboxFS implements FSInterface {
     } catch (error) {
       var getMetadataError = error.error;
       if (getMetadataError.error) {
-        return HandleGetMetadataError(path, getMetadataError.error);
+        HandleGetMetadataError(path, getMetadataError.error);
       } else {
-        throw TypeError(getMetadataError);
+        throw DropboxError(getMetadataError);
       }
     }
 
     if (fileMeta?.content_hash) {
       return fileMeta?.content_hash;
     } else {
-      throw TypeError('[Dropbox] getFileHash: no hash for file "' + path + '"');
+      throw DropboxError({
+        status: FileSystemStatus.NotFound,
+        message: 'getFileHash: no hash for file "' + path + '"',
+      });
     }
   }
 }

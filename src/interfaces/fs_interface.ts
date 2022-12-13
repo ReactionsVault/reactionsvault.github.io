@@ -1,12 +1,11 @@
-export enum FileStatus {
+export enum FileSystemStatus {
   Unknown,
   Success,
   NotFound,
 }
 
 export class File {
-  status: FileStatus = FileStatus.Unknown;
-  content?: Object;
+  content: Blob;
 }
 
 export interface FSInterface {

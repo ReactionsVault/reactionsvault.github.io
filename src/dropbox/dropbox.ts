@@ -7,6 +7,10 @@ var CLIENT_ID = 'n5f5arc8a4aa3fq'; //app key
 var dbxAuth: DropboxAPI.DropboxAuth;
 export var dbx: DropboxAPI.Dropbox;
 
+export function DropboxError(error: any) {
+  return { system: 'Dropbox', error };
+}
+
 const dropboxSignIn = document.getElementById('dropbox-sign-in');
 if (dropboxSignIn != null) dropboxSignIn.addEventListener('click', dropbox_auth);
 
