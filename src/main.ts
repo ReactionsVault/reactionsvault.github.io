@@ -12,25 +12,19 @@ async function loadDataBase(): Promise<void> {
     if (db_hash !== test_db_hash) {
     } else {
       var db_file = await fs?.downloadFile(DB_NAME);
-      console.log(await db_file?.content.text());
+      console.log(await db_file.file.content.text());
     }
   } else {
-    try {
-      var db_file = await fs?.downloadFile(DB_NAME);
-    } catch (error) {
-      if (!!error.error.status) {
-        switch (error.error.status) {
-          case FileSystemStatus.NotFound:
-            await fs?.uploadFile(DB_NAME, { content: 'test' });
-            db_hash = await fs?.getFileHash(DB_NAME);
-            window.localStorage.setItem('db_hash', db_hash);
-            break;
-          default:
-            throw Error(error);
-        }
-      } else {
-        throw Error(error);
-      }
+    var db_file = await fs?.downloadFile(DB_NAME);
+    switch (db_file.status) {
+      case FileSystemStatus.Success:
+        console.log(await db_file.file.content.text());
+        break;
+      case FileSystemStatus.NotFound:
+        await fs?.uploadFile(DB_NAME, { content: 'test' });
+        db_hash = await fs?.getFileHash(DB_NAME);
+        window.localStorage.setItem('db_hash', db_hash);
+        break;
     }
   }
 }

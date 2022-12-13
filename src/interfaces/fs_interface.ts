@@ -10,6 +10,6 @@ export class File {
 
 export interface FSInterface {
   getFileHash(path: string): Promise<string>; // return file's hash from server as string
-  uploadFile(path: string, file: File): Promise<void>;
-  downloadFile(path: string): Promise<File>;
+  uploadFile(path: string, file: File): Promise<FileSystemStatus>;
+  downloadFile(path: string): Promise<{ status: FileSystemStatus; file?: File }>;
 }
