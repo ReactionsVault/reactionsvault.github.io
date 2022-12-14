@@ -1,5 +1,5 @@
 import * as DropboxAPI from 'dropbox';
-import { dbx, DropboxError } from './dropbox';
+import { DropboxError } from './dropbox_common';
 import { FSInterface, File, FileSystemStatus } from '../interfaces/fs_interface';
 
 function HandleLookupError(path: string, lookupError: DropboxAPI.LookupError) {
@@ -50,10 +50,15 @@ function HandleGetMetadataError(path: string, getMetadataError: DropboxAPI.GetMe
 }
 
 export class DropboxFS implements FSInterface {
+    private dbx: DropboxAPI.Dropbox;
+    constructor(dbx: DropboxAPI.Dropbox) {
+        this.dbx = dbx;
+    }
+
     //for files below 150MB
     async uploadSmallFile(path: string, file: File): Promise<FileSystemStatus> {
         try {
-            await dbx.filesUpload({ path, contents: file.content });
+            await this.dbx.filesUpload({ path, contents: file.content });
             return FileSystemStatus.Success;
         } catch (error) {
             var uploadError = error.error;
@@ -71,7 +76,7 @@ export class DropboxFS implements FSInterface {
 
     async downloadFile(path: string): Promise<{ status: FileSystemStatus; file?: File }> {
         try {
-            var respond = await dbx.filesDownload({ path });
+            var respond = await this.dbx.filesDownload({ path });
             return { status: FileSystemStatus.Success, file: { content: respond.result.fileBlob } };
         } catch (error) {
             var downloadError = error.error;
@@ -85,7 +90,7 @@ export class DropboxFS implements FSInterface {
 
     async getFileHash(path: string): Promise<string> {
         try {
-            var fileMeta = (await dbx.filesGetMetadata({ path })).result as DropboxAPI.files.FileMetadata;
+            var fileMeta = (await this.dbx.filesGetMetadata({ path })).result as DropboxAPI.files.FileMetadata;
         } catch (error) {
             var getMetadataError = error.error;
             if (getMetadataError.error) {
