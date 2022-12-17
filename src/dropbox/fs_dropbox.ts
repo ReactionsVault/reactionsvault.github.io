@@ -43,7 +43,7 @@ function HandleUploadError(path: string, uploadError: DropboxAPI.UploadError): F
 function HandleGetMetadataError(path: string, getMetadataError: DropboxAPI.GetMetadataError) {
     switch (getMetadataError['.tag']) {
         case 'path': //DownloadErrorPath
-            HandleLookupError(path, downloadError.path);
+            HandleLookupError(path, getMetadataError.path);
         default:
             throw DropboxError('Unsupported GetMetadataError type. File: ' + path);
     }
@@ -56,10 +56,9 @@ export class DropboxFS implements FSInterface {
     }
 
     //for files below 150MB
-    async uploadSmallFile(path: string, file: File): Promise<FileSystemStatus> {
+    private async uploadSmallFile(path: string, file: File): Promise<FileSystemStatus> {
         try {
-            await this.dbx.filesUpload({ path, contents: file.content });
-            return FileSystemStatus.Success;
+            await this.dbx.filesUpload({ path, contents: file.content, autorename: true, mute: true, mode: 'add' });
         } catch (error) {
             var uploadError = error.error;
             if (!!uploadError.error) {
@@ -68,16 +67,84 @@ export class DropboxFS implements FSInterface {
                 throw DropboxError(uploadError);
             }
         }
+
+        return FileSystemStatus.Success;
+    }
+
+    private async uploadBigFile(path: string, file: File): Promise<FileSystemStatus> {
+        const concurrentSize = 4194304; // call must be multiple of 4194304 bytes (except for last upload_session/append:2 with UploadSessionStartArg.close to true, that may contain any remaining data).
+        const maxBlob = concurrentSize * Math.floor((8 * 1000 * 1000) / concurrentSize); // 8MB - Dropbox JavaScript API suggested max file / chunk size
+
+        var blobs: Blob[] = [];
+        var offset = 0;
+        while (offset < file.content.size) {
+            var blobSize = Math.min(maxBlob, file.content.size - offset);
+            blobs.push(file.content.slice(offset, offset + blobSize));
+            offset += maxBlob;
+        }
+        const blobsCount = blobs.length;
+
+        try {
+            var sessionId = (await this.dbx.filesUploadSessionStart({ session_type: 'concurrent' })).result.session_id;
+        } catch (error) {
+            var uploadError = error.error;
+            if (!!uploadError.error) {
+                return HandleUploadError(path, uploadError.error);
+            } else {
+                throw DropboxError(uploadError);
+            }
+        }
+
+        try {
+            var uploadPromises: Promise<DropboxResponse<void>>[] = [];
+            for (let id = 0; id < blobsCount - 1; ++id) {
+                var cursor = { session_id: sessionId, offset: id * maxBlob };
+                uploadPromises.push(this.dbx.filesUploadSessionAppendV2({ cursor: cursor, contents: blobs[id] }));
+            }
+
+            var lastBlob = blobs[blobsCount - 1];
+            var cursor = { session_id: sessionId, offset: (blobsCount - 1) * maxBlob };
+            uploadPromises.push(
+                this.dbx.filesUploadSessionAppendV2({ cursor: cursor, contents: lastBlob, close: true })
+            );
+            await Promise.all(uploadPromises);
+        } catch (error) {
+            var uploadError = error.error;
+            if (!!uploadError.error) {
+                return HandleUploadError(path, uploadError.error);
+            } else {
+                throw DropboxError(uploadError);
+            }
+        }
+
+        try {
+            var cursor = { session_id: sessionId, offset: 0 /*concurrent*/ };
+            var commit = { path: path, autorename: true, mute: true, mode: 'add' };
+            await this.dbx.filesUploadSessionFinish({ cursor: cursor, commit: commit });
+        } catch (error) {
+            var uploadError = error;
+            if (!!uploadError.error) {
+                return HandleUploadError(path, uploadError.error);
+            } else {
+                throw DropboxError(uploadError);
+            }
+        }
+
+        return FileSystemStatus.Success;
     }
 
     async uploadFile(path: string, file: File): Promise<FileSystemStatus> {
-        return this.uploadSmallFile(path, file);
+        const smallFileMaxSize = 150 * 1000 * 1000; // 150 MB - from dropbox doc
+        if (file.content.size < smallFileMaxSize) {
+            return this.uploadSmallFile(path, file);
+        } else {
+            return this.uploadBigFile(path, file);
+        }
     }
 
     async downloadFile(path: string): Promise<{ status: FileSystemStatus; file?: File }> {
         try {
             var respond = await this.dbx.filesDownload({ path });
-            return { status: FileSystemStatus.Success, file: { content: respond.result.fileBlob } };
         } catch (error) {
             var downloadError = error.error;
             if (!!downloadError.error) {
@@ -86,6 +153,7 @@ export class DropboxFS implements FSInterface {
                 throw DropboxError(downloadError);
             }
         }
+        return { status: FileSystemStatus.Success, file: { content: respond.result.fileBlob } };
     }
 
     async getFileHash(path: string): Promise<string> {

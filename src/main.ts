@@ -21,12 +21,30 @@ async function loadDataBase(): Promise<void> {
                 console.log(await db_file.file.content.text());
                 break;
             case FileSystemStatus.NotFound:
-                await system.fs.uploadFile(DB_NAME, { content: 'test' });
+                await system.fs.uploadFile(DB_NAME, { content: new Blob(['test']) });
                 db_hash = await system.fs.getFileHash(DB_NAME);
                 window.localStorage.setItem('db_hash', db_hash);
                 break;
         }
     }
+}
+
+var fileUploadButton: HTMLElement = document.getElementById('reaction');
+{
+    async function uploadImage(): Promise<void> {
+        const file = fileUploadButton.files[0];
+        if (!!file) {
+            await system?.fs.uploadFile('/' + file.name, { content: file });
+            console.log('uploaded');
+        }
+    }
+    fileUploadButton.addEventListener('change', uploadImage);
+}
+
+var imgView: HTMLElement = document.getElementById('testimg');
+async function showImg(): Promise<void> {
+    var img_file = await system.fs.downloadFile('/test.jpg');
+    imgView.src = URL.createObjectURL(img_file.file.content);
 }
 
 var signInButtons: HTMLElement[] = [];
@@ -92,4 +110,5 @@ if (!loggedIn) {
 
 if (loggedIn) {
     loadDataBase();
+    fileUploadButton.disabled = false;
 }
