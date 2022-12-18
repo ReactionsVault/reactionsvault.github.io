@@ -1,7 +1,14 @@
 import * as DropboxAPI from 'dropbox';
 import { DropboxError } from './dropbox_common';
-import { FSInterface, File, FileSystemStatus, UploadResult, FileInfo } from '../interfaces/fs_interface';
-import * as CryptoJS from 'crypto-js';
+import {
+    FSInterface,
+    File,
+    FileSystemStatus,
+    UploadResult,
+    DownloadResult,
+    FileInfo,
+    FileUploadMode,
+} from '../interfaces/fs_interface';
 
 function HandleLookupError(path: string, lookupError: DropboxAPI.LookupError) {
     switch (lookupError['.tag']) {
@@ -50,13 +57,6 @@ function HandleGetMetadataError(path: string, getMetadataError: DropboxAPI.GetMe
     }
 }
 
-function preparePath(path: string): string {
-    var returnPath = path;
-    if (path[0] != '/') returnPath = '/' + returnPath;
-
-    return returnPath;
-}
-
 export class DropboxFS implements FSInterface {
     private dbx: DropboxAPI.Dropbox;
     constructor(dbx: DropboxAPI.Dropbox) {
@@ -75,15 +75,19 @@ export class DropboxFS implements FSInterface {
     }
 
     //for files below 150MB
-    private async uploadSmallFile(path: string, file: File): Promise<UploadResult> {
+    private async uploadSmallFile(
+        path: string,
+        file: File,
+        commit: DropboxAPI.files.CommitInfo
+    ): Promise<UploadResult> {
         try {
             var fileMeta = (
                 await this.dbx.filesUpload({
                     path,
                     contents: file.content,
-                    autorename: true,
-                    mute: true,
-                    mode: 'add',
+                    autorename: commit.autorename,
+                    mute: commit.mute,
+                    mode: commit.mode,
                 })
             ).result;
         } catch (error) {
@@ -95,10 +99,13 @@ export class DropboxFS implements FSInterface {
             }
         }
 
-        return { status: FileSystemStatus.Success, fileInfo: { hash: fileMeta.content_hash } };
+        var fileInfo: FileInfo = new FileInfo();
+        fileInfo.hash = fileMeta.content_hash;
+        fileInfo.name = fileMeta.id;
+        return { status: FileSystemStatus.Success, fileInfo };
     }
 
-    private async uploadBigFile(path: string, file: File): Promise<UploadResult> {
+    private async uploadBigFile(path: string, file: File, commit: DropboxAPI.files.CommitInfo): Promise<UploadResult> {
         const concurrentSize = 4194304; // call must be multiple of 4194304 bytes (except for last upload_session/append:2 with UploadSessionStartArg.close to true, that may contain any remaining data).
         const maxBlob = concurrentSize * Math.floor((8 * 1024 * 1024) / concurrentSize); // 8MB - Dropbox JavaScript API suggested max file / chunk size
 
@@ -146,7 +153,7 @@ export class DropboxFS implements FSInterface {
 
         try {
             var cursor = { session_id: sessionId, offset: 0 /*concurrent*/ };
-            var commit = { path: path, autorename: true, mute: true, mode: 'add' };
+            var commit = commit;
             var fileMeta = (await this.dbx.filesUploadSessionFinish({ cursor: cursor, commit: commit })).result;
         } catch (error) {
             var uploadError = error;
@@ -157,39 +164,62 @@ export class DropboxFS implements FSInterface {
             }
         }
 
-        return { status: FileSystemStatus.Success, fileInfo: { hash: fileMeta.content_hash } };
+        var fileInfo: FileInfo = new FileInfo();
+        fileInfo.hash = fileMeta.content_hash;
+        fileInfo.name = fileMeta.id;
+        return { status: FileSystemStatus.Success, fileInfo };
     }
 
-    async uploadFile(path: string, file: File): Promise<UploadResult> {
+    async uploadFile(path: string, file: File, mode: FileUploadMode): Promise<UploadResult> {
         const smallFileMaxSize = 150 * 1024 * 1024; // 150 MB - from dropbox doc
-        var realPath = preparePath(path);
+        var settings = {
+            path: path,
+            mute: true,
+            autorename: true,
+            mode: 'add',
+        };
+        switch (mode) {
+            case FileUploadMode.Add:
+                //defualt
+                break;
+            case FileUploadMode.Replace:
+                settings.autorename = false;
+                settings.mode = 'overwrite';
+                break;
+            default:
+                throw DropboxError('Unknown upload mode');
+        }
+
         if (file.content.size < smallFileMaxSize) {
-            return this.uploadSmallFile(realPath, file);
+            return this.uploadSmallFile(path, file, settings);
         } else {
-            return this.uploadBigFile(realPath, file);
+            return this.uploadBigFile(path, file, settings);
         }
     }
 
-    async downloadFile(path: string): Promise<{ status: FileSystemStatus; file?: File }> {
-        var realPath = preparePath(path);
+    async downloadFile(path: string): Promise<DownloadResult> {
         try {
-            var respond = await this.dbx.filesDownload({ path: realPath });
+            var respond = await this.dbx.filesDownload({ path: path });
         } catch (error) {
             var downloadError = error.error;
             if (!!downloadError.error) {
-                return { status: HandleDownloadError(realPath, downloadError.error) }; // promise returns DropboxResponseError<Error<files.DownloadError>> (there is a mistake in index.d.ts)
+                return { status: HandleDownloadError(path, downloadError.error) }; // promise returns DropboxResponseError<Error<files.DownloadError>> (there is a mistake in index.d.ts)
             } else {
                 throw DropboxError(downloadError);
             }
         }
-        return { status: FileSystemStatus.Success, file: { content: respond.result.fileBlob } };
+
+        const fileMeta = respond.result;
+        var result: DownloadResult = new DownloadResult();
+        result.status = FileSystemStatus.Success;
+        result.file = { content: fileMeta.fileBlob };
+        result.fileInfo = { hash: fileMeta.content_hash, name: fileMeta.id };
+        return result;
     }
 
     async getFileHash(path: string): Promise<string> {
-        var realPath = preparePath(path);
         try {
-            var fileMeta = (await this.dbx.filesGetMetadata({ path: realPath }))
-                .result as DropboxAPI.files.FileMetadata;
+            var fileMeta = (await this.dbx.filesGetMetadata({ path: path })).result as DropboxAPI.files.FileMetadata;
         } catch (error) {
             var getMetadataError = error.error;
             if (getMetadataError.error) {

@@ -31,7 +31,7 @@ export class IndexedDB {
             mediaStore.add(medium);
         }
     }
-    public async export(): Promise<string> {
+    public async export(callback: (db_json: string) => Promise<void>): Promise<void> {
         var db_obj = { tags: [], media: [] };
 
         var trn = db.transaction([DB_TAGS, DB_MEDIA], 'readonly');
@@ -53,7 +53,17 @@ export class IndexedDB {
                 cursor.continue();
             }
         };
-        return JSON.stringify(db_obj);
+
+        trn.oncomplete = (event) => {
+            var db_json = JSON.stringify(db_obj);
+            callback(db_json);
+        };
+    }
+
+    public async addMedium(name: stirng) {
+        var trn = db.transaction(DB_MEDIA, 'readwrite');
+        var mediaStore = trn.objectStore(DB_MEDIA);
+        mediaStore.add({ name: name });
     }
 
     constructor() {

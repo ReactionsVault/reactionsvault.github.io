@@ -1,16 +1,19 @@
 import { DROPBOX_APP } from './dropbox/dropbox_common';
 import { Dropbox } from './dropbox/dropbox';
-import { FileSystemStatus } from './interfaces/fs_interface';
+import { FileSystemStatus, FileUploadMode } from './interfaces/fs_interface';
 import { IndexedDB } from './db_indexed';
 
 var system: Dropbox | null = null;
 var db: IndexedDB = new IndexedDB();
 
 const DB_NAME = '/reactionsvault_db';
-async function uploadDataBase(): Promise<void> {
-    var db_json = await db.export();
-    var result = await system.fs.uploadFile(DB_NAME, { content: new Blob([db_json]) });
+async function uploadDataBaseCallBack(db_json: stirng): Promise<void> {
+    var result = await system.fs.uploadFile(DB_NAME, { content: new Blob([db_json]) }, FileUploadMode.Replace);
     window.localStorage.setItem('db_hash', result.fileInfo.hash);
+}
+
+async function uploadDataBase(): Promise<void> {
+    await db.export(uploadDataBaseCallBack);
 }
 
 async function loadDataBase(): Promise<void> {
@@ -18,14 +21,16 @@ async function loadDataBase(): Promise<void> {
     if (!!db_hash) {
         var test_db_hash = await system.fs.getFileHash(DB_NAME);
         if (db_hash !== test_db_hash) {
-            var db_file = await system.fs.downloadFile(DB_NAME).file.content.text();
+            var download_result = await system.fs.downloadFile(DB_NAME);
+            var db_file = download_result.file.content.text();
             db.import(db_file);
         }
     } else {
-        var db_file = await system.fs.downloadFile(DB_NAME);
-        switch (db_file.status) {
+        var download_result = await system.fs.downloadFile(DB_NAME);
+        switch (download_result.status) {
             case FileSystemStatus.Success:
-                db.import(await db_file.file.content.text());
+                db.import(await download_result.file.content.text());
+                window.localStorage.setItem('db_hash', download_result.fileInfo.hash);
                 break;
             case FileSystemStatus.NotFound:
                 uploadDataBase();
@@ -39,8 +44,9 @@ var fileUploadButton: HTMLElement = document.getElementById('reaction');
     async function uploadImage(): Promise<void> {
         const file = fileUploadButton.files[0];
         if (!!file) {
-            await system?.fs.uploadFile('/' + file.name, { content: file });
-            console.log('uploaded');
+            var result = await system?.fs.uploadFile('/' + file.name, { content: file }, FileUploadMode.Add);
+            await db.addMedium(result?.fileInfo?.name);
+            uploadDataBase();
         }
     }
     fileUploadButton.addEventListener('change', uploadImage);
