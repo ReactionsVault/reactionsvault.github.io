@@ -1,29 +1,34 @@
 import { DROPBOX_APP } from './dropbox/dropbox_common';
 import { Dropbox } from './dropbox/dropbox';
 import { FileSystemStatus } from './interfaces/fs_interface';
+import { IndexedDB } from './db_indexed';
 
 var system: Dropbox | null = null;
+var db: IndexedDB = new IndexedDB();
 
 const DB_NAME = '/reactionsvault_db';
+async function uploadDataBase(): Promise<void> {
+    var db_json = await db.export();
+    var result = await system.fs.uploadFile(DB_NAME, { content: new Blob([db_json]) });
+    window.localStorage.setItem('db_hash', result.fileInfo.hash);
+}
+
 async function loadDataBase(): Promise<void> {
     var db_hash: string = window.localStorage.getItem('db_hash');
     if (!!db_hash) {
         var test_db_hash = await system.fs.getFileHash(DB_NAME);
         if (db_hash !== test_db_hash) {
-        } else {
-            var db_file = await system.fs.downloadFile(DB_NAME);
-            console.log(await db_file.file.content.text());
+            var db_file = await system.fs.downloadFile(DB_NAME).file.content.text();
+            db.import(db_file);
         }
     } else {
         var db_file = await system.fs.downloadFile(DB_NAME);
         switch (db_file.status) {
             case FileSystemStatus.Success:
-                console.log(await db_file.file.content.text());
+                db.import(await db_file.file.content.text());
                 break;
             case FileSystemStatus.NotFound:
-                await system.fs.uploadFile(DB_NAME, { content: new Blob(['test']) });
-                db_hash = await system.fs.getFileHash(DB_NAME);
-                window.localStorage.setItem('db_hash', db_hash);
+                uploadDataBase();
                 break;
         }
     }
