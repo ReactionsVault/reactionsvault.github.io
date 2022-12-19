@@ -72,6 +72,20 @@ var dropbox: Dropbox | null = null;
     }
 }
 
+var tagElement = document.getElementById('tag');
+var addTagButton = document.getElementById('add_tag');
+{
+    async function addTag() {
+        const tagName = tagElement.value;
+        if (!!tagName) {
+            tagElement.value = '';
+            await db.addTag(tagName);
+            uploadDataBase();
+        }
+    }
+    addTagButton.addEventListener('click', addTag);
+}
+
 const system_name = window.localStorage.getItem('auth_app');
 var loggedIn: boolean = false;
 if (!!system_name) {
@@ -122,4 +136,6 @@ if (!loggedIn) {
 if (loggedIn) {
     loadDataBase();
     fileUploadButton.disabled = false;
+    tagElement.disabled = false;
+    addTagButton.disabled = false;
 }

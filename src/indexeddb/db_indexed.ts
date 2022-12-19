@@ -35,6 +35,12 @@ export class IndexedDB {
         mediaStore.add({ name: name });
     }
 
+    public async addTag(name: string) {
+        var trn = db.transaction(DB_TAGS, 'readwrite');
+        var tagStore = trn.objectStore(DB_TAGS);
+        tagStore.add({ name: name });
+    }
+
     constructor() {
         const openRequest = indexedDB.open(DB_NAME, DB_VERSION);
         openRequest.onerror = function () {
