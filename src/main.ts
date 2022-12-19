@@ -1,7 +1,7 @@
 import { DROPBOX_APP } from './dropbox/dropbox_common';
 import { Dropbox } from './dropbox/dropbox';
 import { FileSystemStatus, FileUploadMode } from './interfaces/fs_interface';
-import { IndexedDB } from './db_indexed';
+import { IndexedDB } from './indexeddb/db_indexed';
 
 var system: Dropbox | null = null;
 var db: IndexedDB = new IndexedDB();

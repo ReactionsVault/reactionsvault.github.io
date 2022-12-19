@@ -1,3 +1,5 @@
+import { IndexedDBJSON } from './idb_json';
+
 const DB_VERSION = 1;
 const DB_NAME = 'REACTIONS';
 const DB_TAGS = 'TAGS';
@@ -18,46 +20,13 @@ export class Medium {
 
 var db: IDBDatabase | null = null;
 export class IndexedDB {
-    public async import(db_json: string): Promise<void> {
-        var db_obj = JSON.parse(db_json);
-        const trn = db.transaction([DB_TAGS, DB_MEDIA], 'readwrite');
-        const tagsStore = trn.objectStore(DB_TAGS);
-        for (let tag of db_obj.tags) {
-            tagsStore.add(tag);
-        }
+    dbExporter: IndexedDBJSON = new IndexedDBJSON();
 
-        const mediaStore = trn.objectStore(DB_MEDIA);
-        for (let medium of db_obj.media) {
-            mediaStore.add(medium);
-        }
+    public async import(dbJson: string): Promise<void> {
+        this.dbExporter.import(db, dbJson);
     }
-    public async export(callback: (db_json: string) => Promise<void>): Promise<void> {
-        var db_obj = { tags: [], media: [] };
-
-        var trn = db.transaction([DB_TAGS, DB_MEDIA], 'readonly');
-        const tagsStore = trn.objectStore(DB_TAGS);
-        const requestTags = tagsStore.openCursor();
-        requestTags.onsuccess = (event) => {
-            const cursor = event.target.result;
-            if (cursor) {
-                db_obj.tags.push(cursor.value);
-                cursor.continue();
-            }
-        };
-        const mediaStore = trn.objectStore(DB_MEDIA);
-        const requestMedia = mediaStore.openCursor();
-        requestMedia.onsuccess = (event) => {
-            const cursor = event.target.result;
-            if (cursor) {
-                db_obj.media.push(cursor.value);
-                cursor.continue();
-            }
-        };
-
-        trn.oncomplete = (event) => {
-            var db_json = JSON.stringify(db_obj);
-            callback(db_json);
-        };
+    public async export(callback: (dbJson: string) => Promise<void>): Promise<void> {
+        this.dbExporter.export(db, callback);
     }
 
     public async addMedium(name: stirng) {
