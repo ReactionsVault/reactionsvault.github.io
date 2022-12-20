@@ -78,7 +78,14 @@ export class DropboxFS implements FSInterface {
         for (var offset = 0; offset < fileSize; offset += BLOCK_SIZE) {
             const blockSize = Math.min(BLOCK_SIZE, fileSize - offset);
             const blockBlob = file.content.slice(offset, offset + blockSize);
-            const blockHashPromise = crypto.subtle.digest('SHA-256', await blockBlob.arrayBuffer());
+            const blockHashPromise = blockBlob.arrayBuffer();
+            blocksHashesPromises.push(blockHashPromise);
+        }
+
+        const blockArrays = await Promise.all(blocksHashesPromises);
+        blocksHashesPromises.length = 0;
+        for (let blockArray of blockArrays) {
+            const blockHashPromise = crypto.subtle.digest('SHA-256', blockArray);
             blocksHashesPromises.push(blockHashPromise);
         }
 
