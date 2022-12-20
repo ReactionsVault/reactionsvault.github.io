@@ -1,6 +1,6 @@
 export class AuthData {
-    access_token: string;
-    refresh_token: string;
+    access_token: string | null = null;
+    refresh_token: string | null = null;
 }
 
 export interface AuthInterface {

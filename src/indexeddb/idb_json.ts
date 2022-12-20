@@ -1,3 +1,4 @@
+// @ts-ignore
 function IndexedDBJSONError(error: any) {
     return { system: 'IndexedDBJSON', error };
 }
@@ -19,7 +20,7 @@ export class IndexedDBJSON {
         }
     }
     public async export(db: IDBDatabase, callback: (dbJson: string) => Promise<void>): Promise<void> {
-        var dbObj = {};
+        var dbObj: any = {};
         const objectStores = Array.from(db.objectStoreNames);
         for (let storeName of objectStores) {
             dbObj[storeName] = [];
@@ -30,7 +31,9 @@ export class IndexedDBJSON {
             const store = trn.objectStore(storeName);
             const requestCursor = store.openCursor();
             requestCursor.onsuccess = (event) => {
-                const cursor = event.target.result;
+                if (event.target === null) return;
+
+                const cursor = (event.target as IDBRequest<IDBCursorWithValue | null>).result;
                 if (cursor) {
                     dbObj[storeName].push(cursor.value);
                     cursor.continue();
@@ -38,7 +41,7 @@ export class IndexedDBJSON {
             };
         }
 
-        trn.oncomplete = (event) => {
+        trn.oncomplete = () => {
             var dbJson = JSON.stringify(dbObj);
             callback(dbJson);
         };

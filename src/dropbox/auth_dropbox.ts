@@ -7,7 +7,7 @@ const CLIENT_ID = 'n5f5arc8a4aa3fq'; //app key
 
 export class DropboxAuth implements AuthInterface {
     private dbxAuth: DropboxAPI.DropboxAuth;
-    private dbx: DropboxAPI.Dropbox;
+    private dbx: DropboxAPI.Dropbox | null = null;
 
     constructor() {
         this.dbxAuth = new DropboxAPI.DropboxAuth({
@@ -22,7 +22,7 @@ export class DropboxAuth implements AuthInterface {
         this.dbx = dbx;
     }
 
-    async RequestLogin(): void {
+    async RequestLogin() {
         var authUrl = await this.dbxAuth.getAuthenticationUrl(
             REDIRECT_URI, // redirectUri - A URL to redirect the user to after authenticating. This must be added to your app through the admin interface.
             DROPBOX_APP, // state - State that will be returned in the redirect URL to help prevent cross site scripting attacks.
@@ -58,7 +58,7 @@ export class DropboxAuth implements AuthInterface {
         var sessionCode = window.sessionStorage.getItem('codeVerifier');
         if (!!sessionCode) {
             this.dbxAuth.setCodeVerifier(sessionCode);
-            var login = (await this.dbxAuth.getAccessTokenFromCode(REDIRECT_URI, oauth_code)).result;
+            var login = (await this.dbxAuth.getAccessTokenFromCode(REDIRECT_URI, oauth_code)).result as any;
             return { access_token: login.access_token, refresh_token: login.refresh_token };
         }
         throw DropboxError('There is no codeVerifier. Call RequestLogin() first');
@@ -69,14 +69,12 @@ export class DropboxAuth implements AuthInterface {
         this.dbxAuth.setRefreshToken(refresh_token);
         this.dbxAuth.setClientId(CLIENT_ID);
 
-        this.dbx.auth;
-
-        this.dbx.setAuth = new DropboxAPI.Dropbox({
+        this.dbx = new DropboxAPI.Dropbox({
             auth: this.dbxAuth,
         });
 
         var response = await this.dbx.usersGetCurrentAccount();
-        if (!!response.result.account_id) {
+        if (!!response?.result.account_id) {
             return;
         } else {
             throw DropboxError('Login() failed');

@@ -10,12 +10,12 @@ function IndexedDBError(error: any) {
 }
 
 export class Tag {
-    id: number;
-    name: string;
+    id: number | undefined;
+    name: string = '';
 }
 
 export class Medium {
-    name: string;
+    name: string = '';
 }
 
 var db: IDBDatabase | null = null;
@@ -23,19 +23,23 @@ export class IndexedDB {
     dbExporter: IndexedDBJSON = new IndexedDBJSON();
 
     public async import(dbJson: string): Promise<void> {
+        if (db === null) throw IndexedDBError('Import, no db');
         this.dbExporter.import(db, dbJson);
     }
     public async export(callback: (dbJson: string) => Promise<void>): Promise<void> {
+        if (db === null) throw IndexedDBError('Export, no db');
         this.dbExporter.export(db, callback);
     }
 
-    public async addMedium(name: stirng) {
+    public async addMedium(name: string) {
+        if (db === null) throw IndexedDBError('AddMedium, no db');
         var trn = db.transaction(DB_MEDIA, 'readwrite');
         var mediaStore = trn.objectStore(DB_MEDIA);
         mediaStore.add({ name: name });
     }
 
     public async addTag(name: string) {
+        if (db === null) throw IndexedDBError('AddTag, no db');
         var trn = db.transaction(DB_TAGS, 'readwrite');
         var tagStore = trn.objectStore(DB_TAGS);
         tagStore.add({ name: name });
@@ -52,12 +56,12 @@ export class IndexedDB {
             //openRequest.result stores new DB
             //here we create DB definition, values it stores etc
             var newDB = openRequest.result;
-            var tagsStore = newDB.createObjectStore(DB_TAGS, {
+            newDB.createObjectStore(DB_TAGS, {
                 keyPath: 'id', //this means that stored object (js object) needs param id that works as key.
                 autoIncrement: true,
             });
 
-            var mediaStore = newDB.createObjectStore(DB_MEDIA, { keyPath: 'name' });
+            newDB.createObjectStore(DB_MEDIA, { keyPath: 'name' });
         };
 
         openRequest.onsuccess = function () {

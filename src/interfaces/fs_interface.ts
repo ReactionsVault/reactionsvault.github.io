@@ -11,19 +11,19 @@ export enum FileUploadMode {
 }
 
 export class File {
-    content: Blob;
+    content: Blob | null = null;
 }
 
 export class FileInfo {
     hash: string | undefined;
-    name: stirng | undefined;
+    name: string | undefined;
 }
 export class UploadResult {
-    status: FileSystemStatus;
+    status: FileSystemStatus = FileSystemStatus.Unknown;
     fileInfo?: FileInfo;
 }
 export class DownloadResult {
-    status: FileSystemStatus;
+    status: FileSystemStatus = FileSystemStatus.Unknown;
     file?: File;
     fileInfo?: FileInfo;
 }
