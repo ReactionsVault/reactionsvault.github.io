@@ -9,6 +9,9 @@ var db: IndexedDB = new IndexedDB();
 const DB_NAME = '/reactionsvault_db';
 async function uploadDataBaseCallBack(db_json: stirng): Promise<void> {
     var result = await system.fs.uploadFile(DB_NAME, { content: new Blob([db_json]) }, FileUploadMode.Replace);
+    if (result.status !== FileSystemStatus.Success) {
+        throw Error('Couldnt upload db, status: ' + result.status);
+    }
     window.localStorage.setItem('db_hash', result.fileInfo.hash);
 }
 
@@ -22,6 +25,9 @@ async function loadDataBase(): Promise<void> {
         var test_db_hash = await system.fs.getFileHash(DB_NAME);
         if (db_hash !== test_db_hash) {
             var download_result = await system.fs.downloadFile(DB_NAME);
+            if (download_result.status !== FileSystemStatus.Success) {
+                throw Error('Local hash exists. Couldnt download db, status: ' + download_result.status);
+            }
             var db_file = download_result.file.content.text();
             db.import(db_file);
         }
@@ -35,6 +41,8 @@ async function loadDataBase(): Promise<void> {
             case FileSystemStatus.NotFound:
                 uploadDataBase();
                 break;
+            default:
+                throw Error('Local hash doesnt exists. Couldnt download db, status: ' + download_result.status);
         }
     }
 }
@@ -45,6 +53,9 @@ var fileUploadButton: HTMLElement = document.getElementById('reaction');
         const file = fileUploadButton.files[0];
         if (!!file) {
             var result = await system?.fs.uploadFile('/' + file.name, { content: file }, FileUploadMode.Add);
+            if (result.status !== FileSystemStatus.Success) {
+                throw Error('Couldnt upload medium, status: ' + result.status);
+            }
             await db.addMedium(result?.fileInfo?.name);
             uploadDataBase();
         }

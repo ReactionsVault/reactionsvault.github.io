@@ -2,6 +2,7 @@ export enum FileSystemStatus {
     Unknown,
     Success,
     NotFound,
+    MismatchHash,
 }
 
 export enum FileUploadMode {

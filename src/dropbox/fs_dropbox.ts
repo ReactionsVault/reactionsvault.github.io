@@ -43,6 +43,8 @@ function HandleDownloadError(path: string, downloadError: DropboxAPI.DownloadErr
 
 function HandleUploadError(path: string, uploadError: DropboxAPI.UploadError): FileSystemStatus {
     switch (uploadError['.tag']) {
+        case 'content_hash_mismatch':
+            return FileSystemStatus.MismatchHash;
         default:
             throw DropboxError('Unsupported UploadError type. File: ' + path + ' Tag: ' + uploadError['.tag']);
     }
@@ -70,15 +72,46 @@ export class DropboxFS implements FSInterface {
             -Concatenate the hash of all blocks in the binary format to form a single binary string.
             -Compute the hash of the concatenated string using SHA-256. Output the resulting hash in hexadecimal format.
         */
+        const BLOCK_SIZE = 4 * 1024 * 1024;
+        var blocksHashesPromises: Promise<ArrayBuffer>[] = [];
+        const fileSize = file.content.size;
+        for (var offset = 0; offset < fileSize; offset += BLOCK_SIZE) {
+            const blockSize = Math.min(BLOCK_SIZE, fileSize - offset);
+            const blockBlob = file.content.slice(offset, offset + blockSize);
+            const blockHashPromise = crypto.subtle.digest('SHA-256', await blockBlob.arrayBuffer());
+            blocksHashesPromises.push(blockHashPromise);
+        }
 
-        throw DropboxError('calculateFileHash not implemented');
+        var mergedBufferSize = 0;
+        const blockHashes = await Promise.all(blocksHashesPromises);
+        for (let blockHash of blockHashes) {
+            mergedBufferSize += blockHash.byteLength;
+        }
+
+        var mergedHash = new Uint8Array(mergedBufferSize);
+        var offset = 0;
+        for (let blockHash of blockHashes) {
+            mergedHash.set(new Uint8Array(blockHash), offset);
+            offset += blockHash.byteLength;
+        }
+
+        const finalHashArrayBuffer = await crypto.subtle.digest('SHA-256', mergedHash);
+        const finalHash = new Uint8Array(finalHashArrayBuffer);
+        var hexHash: string[] = new Array<string>(mergedBufferSize);
+        for (let b of finalHash) {
+            const char = b.toString(16).padStart(2, '0');
+            hexHash.push(char);
+        }
+
+        return hexHash.join('');
     }
 
     //for files below 150MB
     private async uploadSmallFile(
         path: string,
         file: File,
-        commit: DropboxAPI.files.CommitInfo
+        commit: DropboxAPI.files.CommitInfo,
+        fileHash: Promise<string>
     ): Promise<UploadResult> {
         try {
             var fileMeta = (
@@ -88,6 +121,7 @@ export class DropboxFS implements FSInterface {
                     autorename: commit.autorename,
                     mute: commit.mute,
                     mode: commit.mode,
+                    content_hash: await fileHash,
                 })
             ).result;
         } catch (error) {
@@ -105,7 +139,12 @@ export class DropboxFS implements FSInterface {
         return { status: FileSystemStatus.Success, fileInfo };
     }
 
-    private async uploadBigFile(path: string, file: File, commit: DropboxAPI.files.CommitInfo): Promise<UploadResult> {
+    private async uploadBigFile(
+        path: string,
+        file: File,
+        commit: DropboxAPI.files.CommitInfo,
+        fileHash: Promise<string>
+    ): Promise<UploadResult> {
         const concurrentSize = 4194304; // call must be multiple of 4194304 bytes (except for last upload_session/append:2 with UploadSessionStartArg.close to true, that may contain any remaining data).
         const maxBlob = concurrentSize * Math.floor((8 * 1024 * 1024) / concurrentSize); // 8MB - Dropbox JavaScript API suggested max file / chunk size
 
@@ -154,7 +193,13 @@ export class DropboxFS implements FSInterface {
         try {
             var cursor = { session_id: sessionId, offset: 0 /*concurrent*/ };
             var commit = commit;
-            var fileMeta = (await this.dbx.filesUploadSessionFinish({ cursor: cursor, commit: commit })).result;
+            var fileMeta = (
+                await this.dbx.filesUploadSessionFinish({
+                    cursor: cursor,
+                    commit: commit,
+                    content_hash: await fileHash,
+                })
+            ).result;
         } catch (error) {
             var uploadError = error;
             if (!!uploadError.error) {
@@ -163,6 +208,8 @@ export class DropboxFS implements FSInterface {
                 throw DropboxError(uploadError);
             }
         }
+        console.log(this.calculateFileHash(file));
+        console.log(fileMeta.content_hash);
 
         var fileInfo: FileInfo = new FileInfo();
         fileInfo.hash = fileMeta.content_hash;
@@ -190,10 +237,11 @@ export class DropboxFS implements FSInterface {
                 throw DropboxError('Unknown upload mode');
         }
 
+        const fileHash: Promise<string> = this.calculateFileHash(file);
         if (file.content.size < smallFileMaxSize) {
-            return this.uploadSmallFile(path, file, settings);
+            return this.uploadSmallFile(path, file, settings, fileHash);
         } else {
-            return this.uploadBigFile(path, file, settings);
+            return this.uploadBigFile(path, file, settings, fileHash);
         }
     }
 
@@ -210,9 +258,16 @@ export class DropboxFS implements FSInterface {
         }
 
         const fileMeta = respond.result;
+        const file = { content: fileMeta.fileBlob };
+        const fileHash: string = await this.calculateFileHash(file);
+
+        if (fileHash !== fileMeta.content_hash) {
+            return { status: FileSystemStatus.MismatchHash };
+        }
+
         var result: DownloadResult = new DownloadResult();
         result.status = FileSystemStatus.Success;
-        result.file = { content: fileMeta.fileBlob };
+        result.file = file;
         result.fileInfo = { hash: fileMeta.content_hash, name: fileMeta.id };
         return result;
     }
