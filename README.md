@@ -15,15 +15,15 @@ public folder is for things that shouldn't be processed https://vitejs.dev/guide
 src is for things that should be 'build'
 
 ## React:
-https://benediktbergmann.eu/2021/01/17/add-react-and-tests-to-a-typescript-project/
+https://benediktbergmann.eu/2021/01/17/add-react-and-tests-to-a-typescript-project/  
 npm install --save react
-npm install --save react-dom
-npm install --save-dev @types/react @types/react-dom
-add 
-"jsx": "react",
-"moduleResolution": "node",
-in 
-tsconfig.json
+npm install --save react-dom  
+npm install --save-dev @types/react @types/react-dom  
+add  
+"jsx": "react",  
+"moduleResolution": "node",  
+in  
+tsconfig.json  
 
-add [typescriptreact][javascriptreact]
-in settings.json
+add [typescriptreact][javascriptreact]  
+in settings.json  
