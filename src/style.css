@@ -1,0 +1,20 @@
+      .medium {
+        position: relative;
+        width: 50%;
+      }
+
+      /* Make the image responsive */
+      .container img {
+        width: 100%;
+        height: auto;
+      }
+      
+      .container button {
+        position: absolute;
+        height: 15%;
+        width: 15%;
+        top: 7.5%;
+        left: 92.5%;
+        transform: translate(-50%, -50%);
+        background: rgba(255,255,255,0.5);
+}
