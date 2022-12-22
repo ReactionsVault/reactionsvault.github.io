@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Reaction } from 'reaction';
+import { Reaction } from './reaction';
 
 import { FileInfo, FileSystemStatus, FileUploadMode, UploadResult } from '../interfaces/fs_interface';
 import { uploadDataBase } from '../db_common';
@@ -11,6 +11,7 @@ export class Reactions extends React.Component {
         super(props);
         this.state = {
             activeTags: [] as number[],
+            reactionsCount: 0,
         };
 
         this.fileRef = React.createRef();
@@ -34,11 +35,23 @@ export class Reactions extends React.Component {
                 }
                 await globalThis.db.addMedium((result.fileInfo as FileInfo).name as string);
                 uploadDataBase();
+
+                this.setState((state, props) => ({
+                    reactionsCount: state.reactionsCount + 1,
+                }));
             }
         }
     }
     //URL.createObjectURL(img_file.file.content);
     render() {
+        const mediaContent = () => {
+            let content = [];
+            for (let i = 0; i < this.state.reactionsCount; ++i) {
+                content.push(<Reaction key={i} />); //key is used by react to track objects
+            }
+            return content;
+        };
+
         return (
             <div>
                 <div>
@@ -53,6 +66,7 @@ export class Reactions extends React.Component {
                         accept=".mp4, .gif, image/png, image/jpeg"
                     />
                 </div>
+                {mediaContent()}
             </div>
         );
     }

@@ -99,10 +99,14 @@ export class IndexedDB {
             tagsCountRequest.onsuccess = () => {
                 const tagsCount = tagsCountRequest.result;
                 if (tagsCount === 0) {
-                    var defaultTag = new Tag();
-                    defaultTag.name = '';
+                    var defaultTag = {
+                        key: 1,
+                        name: '',
+                    };
                     const tagAddRequest = tagsStore.add(defaultTag);
                     tagAddRequest.onsuccess = (e) => (idexedDBObject.defaultTagID = tagAddRequest.result as number);
+                } else {
+                    idexedDBObject.defaultTagID = 1;
                 }
             };
         };

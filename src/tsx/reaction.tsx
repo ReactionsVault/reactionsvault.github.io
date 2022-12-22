@@ -1,7 +1,7 @@
 import '../css/style.css';
 import * as React from 'react';
 
-class Reaction extends React.Component {
+export class Reaction extends React.Component {
     constructor(props: any) {
         super(props);
     }
