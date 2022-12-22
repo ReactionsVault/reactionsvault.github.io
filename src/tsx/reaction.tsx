@@ -13,7 +13,7 @@ class Reaction extends React.Component {
                     <input type="text" />
                 </div>
                 <div className="medium">
-                    <img src="https://media.sproutsocial.com/uploads/meme-example.jpg" width="500px" />
+                    <img width="500px" alt="loading" />
                     <button>Delete</button>
                 </div>
             </div>

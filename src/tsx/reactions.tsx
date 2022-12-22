@@ -1,9 +1,10 @@
 import * as React from 'react';
+import { Reaction } from 'reaction';
+
 import { FileInfo, FileSystemStatus, FileUploadMode, UploadResult } from '../interfaces/fs_interface';
 import { uploadDataBase } from '../db_common';
 
 export class Reactions extends React.Component {
-    tagNameRef: React.RefObject<HTMLInputElement>;
     fileRef: React.RefObject<HTMLInputElement>;
 
     constructor(props: any) {
@@ -12,22 +13,9 @@ export class Reactions extends React.Component {
             activeTags: [] as number[],
         };
 
-        this.tagNameRef = React.createRef();
         this.fileRef = React.createRef();
 
-        this.addTag = this.addTag.bind(this);
         this.uploadImage = this.uploadImage.bind(this);
-    }
-
-    async addTag() {
-        const tagNameElement = this.tagNameRef.current as HTMLInputElement;
-        const tagName = tagNameElement.value;
-        if (!!tagName) {
-            tagNameElement.value = '';
-
-            await globalThis.db.addTag(tagName);
-            uploadDataBase();
-        }
     }
 
     async uploadImage(): Promise<void> {
@@ -49,11 +37,12 @@ export class Reactions extends React.Component {
             }
         }
     }
-
+    //URL.createObjectURL(img_file.file.content);
     render() {
         return (
             <div>
                 <div>
+                    <input type="text" placeholder="tags..."></input>
                     <label htmlFor="add_reaction">Add reaction</label>
                     <input
                         ref={this.fileRef}
@@ -63,12 +52,6 @@ export class Reactions extends React.Component {
                         style={{ visibility: 'hidden' }}
                         accept=".mp4, .gif, image/png, image/jpeg"
                     />
-                </div>
-                <div>
-                    <input ref={this.tagNameRef} type="text" id="tag" />
-                    <button id="add_tag" onClick={this.addTag}>
-                        Add
-                    </button>
                 </div>
             </div>
         );

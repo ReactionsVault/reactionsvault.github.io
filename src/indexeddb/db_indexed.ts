@@ -22,6 +22,7 @@ export class Medium {
 var db: IDBDatabase | null = null;
 export class IndexedDB {
     dbExporter: IndexedDBJSON = new IndexedDBJSON();
+    defaultTagID: number = -1;
 
     public async import(dbJson: string): Promise<void> {
         if (db === null) throw IndexedDBError('Import, no db');
@@ -34,12 +35,25 @@ export class IndexedDB {
 
     public async addMedium(name: string) {
         if (db === null) throw IndexedDBError('AddMedium, no db');
-        var trn = db.transaction(DB_MEDIA, 'readwrite');
+        var trn = db.transaction([DB_MEDIA, DB_TAGS], 'readwrite');
         var mediaStore = trn.objectStore(DB_MEDIA);
+        var tagStore = trn.objectStore(DB_TAGS);
 
         var medium = new Medium();
         medium.name = name;
-        mediaStore.add(medium);
+        medium.tags.push(this.defaultTagID);
+        const mediaAddRequest = mediaStore.add(medium);
+
+        const defaultTagID = this.defaultTagID;
+        mediaAddRequest.onsuccess = () => {
+            const mediumKey = mediaAddRequest.result as number;
+            const tagDefaultGet = tagStore.get(defaultTagID);
+            tagDefaultGet.onsuccess = () => {
+                var defaultTag = tagDefaultGet.result as Tag;
+                defaultTag.linkedMedia.push(mediumKey);
+                tagStore.put(defaultTag);
+            };
+        };
     }
 
     public async addTag(name: string) {
@@ -63,18 +77,34 @@ export class IndexedDB {
             //openRequest.result stores new DB
             //here we create DB definition, values it stores etc
             var newDB = openRequest.result;
-            newDB.createObjectStore(DB_TAGS, {
-                keyPath: 'id', //this means that stored object (js object) needs param id that works as key.
-                autoIncrement: true,
-            });
+            newDB
+                .createObjectStore(DB_TAGS, {
+                    keyPath: 'id', //this means that stored object (js object) needs param id that works as key.
+                    autoIncrement: true,
+                })
+                .createIndex('name', 'name', { unique: true }); // indices can be quarried, unique = works like key
 
-            var mediaStore = newDB.createObjectStore(DB_MEDIA, { keyPath: 'id', autoIncrement: true });
-            mediaStore.createIndex('name', 'name', { unique: true });
+            newDB
+                .createObjectStore(DB_MEDIA, { keyPath: 'id', autoIncrement: true })
+                .createIndex('name', 'name', { unique: true });
         };
 
+        var idexedDBObject = this;
         openRequest.onsuccess = function () {
             //called after onupgradeneeded (if it was needed)
             db = openRequest.result;
+            var trn = db.transaction(DB_TAGS, 'readwrite');
+            var tagsStore = trn.objectStore(DB_TAGS);
+            const tagsCountRequest = tagsStore.count();
+            tagsCountRequest.onsuccess = () => {
+                const tagsCount = tagsCountRequest.result;
+                if (tagsCount === 0) {
+                    var defaultTag = new Tag();
+                    defaultTag.name = '';
+                    const tagAddRequest = tagsStore.add(defaultTag);
+                    tagAddRequest.onsuccess = (e) => (idexedDBObject.defaultTagID = tagAddRequest.result as number);
+                }
+            };
         };
     }
 }
