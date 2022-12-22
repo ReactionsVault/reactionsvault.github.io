@@ -12,10 +12,13 @@ function IndexedDBError(error: any) {
 export class Tag {
     id: number | undefined;
     name: string = '';
+    linkedMedia: number[] = [];
 }
 
 export class Medium {
+    id: number | undefined;
     name: string = '';
+    tags: number[] = [];
 }
 
 var db: IDBDatabase | null = null;
@@ -35,14 +38,20 @@ export class IndexedDB {
         if (db === null) throw IndexedDBError('AddMedium, no db');
         var trn = db.transaction(DB_MEDIA, 'readwrite');
         var mediaStore = trn.objectStore(DB_MEDIA);
-        mediaStore.add({ name: name });
+
+        var medium = new Medium();
+        medium.name = name;
+        mediaStore.add(medium);
     }
 
     public async addTag(name: string) {
         if (db === null) throw IndexedDBError('AddTag, no db');
         var trn = db.transaction(DB_TAGS, 'readwrite');
         var tagStore = trn.objectStore(DB_TAGS);
-        tagStore.add({ name: name });
+
+        var tag = new Tag();
+        tag.name = name;
+        tagStore.add(tag);
     }
 
     constructor() {
@@ -61,7 +70,8 @@ export class IndexedDB {
                 autoIncrement: true,
             });
 
-            newDB.createObjectStore(DB_MEDIA, { keyPath: 'name' });
+            var mediaStore = newDB.createObjectStore(DB_MEDIA, { keyPath: 'id', autoIncrement: true });
+            mediaStore.createIndex('name', 'name', { unique: true });
         };
 
         openRequest.onsuccess = function () {

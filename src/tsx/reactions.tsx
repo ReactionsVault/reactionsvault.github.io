@@ -60,7 +60,7 @@ export class Reactions extends React.Component {
                         type="file"
                         id="reaction"
                         name="reaction"
-                        accept=".pptx, image/png, image/jpeg"
+                        accept=".mp4, .gif, image/png, image/jpeg"
                     />
                 </div>
                 <div>
