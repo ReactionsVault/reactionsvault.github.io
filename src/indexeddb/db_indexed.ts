@@ -10,13 +10,11 @@ function IndexedDBError(error: any) {
 }
 
 export class Tag {
-    id: number | undefined;
     name: string = '';
     linkedMedia: number[] = [];
 }
 
 export class Medium {
-    id: number | undefined;
     name: string = '';
     tags: number[] = [];
 }

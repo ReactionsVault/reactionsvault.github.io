@@ -54,12 +54,13 @@ export class Reactions extends React.Component {
         return (
             <div>
                 <div>
+                    <label htmlFor="add_reaction">Add reaction</label>
                     <input
                         ref={this.fileRef}
                         onChange={this.uploadImage}
                         type="file"
-                        id="reaction"
-                        name="reaction"
+                        id="add_reaction"
+                        style={{ visibility: 'hidden' }}
                         accept=".mp4, .gif, image/png, image/jpeg"
                     />
                 </div>
