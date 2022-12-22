@@ -24,46 +24,78 @@ export class IndexedDB {
     dbExporter: IndexedDBJSON = new IndexedDBJSON();
     defaultTagID: number = -1;
 
-    public async import(dbJson: string): Promise<void> {
+    public import(dbJson: string): Promise<void> {
         if (db === null) throw IndexedDBError('Import, no db');
-        this.dbExporter.import(db, dbJson);
+        return this.dbExporter.import(db, dbJson);
     }
-    public async export(callback: (dbJson: string) => Promise<void>): Promise<void> {
+    public export(): Promise<string> {
         if (db === null) throw IndexedDBError('Export, no db');
-        this.dbExporter.export(db, callback);
+        return this.dbExporter.export(db);
     }
 
-    public async addMedium(name: string) {
+    public addMedium(name: string): Promise<void> {
         if (db === null) throw IndexedDBError('AddMedium, no db');
-        var trn = db.transaction([DB_MEDIA, DB_TAGS], 'readwrite');
-        var mediaStore = trn.objectStore(DB_MEDIA);
-        var tagStore = trn.objectStore(DB_TAGS);
+        return new Promise<void>((resolve) => {
+            var trn = (db as IDBDatabase).transaction([DB_MEDIA, DB_TAGS], 'readwrite');
+            var mediaStore = trn.objectStore(DB_MEDIA);
+            var tagStore = trn.objectStore(DB_TAGS);
 
-        var medium = new Medium();
-        medium.name = name;
-        medium.tags.push(this.defaultTagID);
-        const mediaAddRequest = mediaStore.add(medium);
+            var medium = new Medium();
+            medium.name = name;
+            medium.tags.push(this.defaultTagID);
+            const mediaAddRequest = mediaStore.add(medium);
 
-        const defaultTagID = this.defaultTagID;
-        mediaAddRequest.onsuccess = () => {
-            const mediumKey = mediaAddRequest.result as number;
-            const tagDefaultGet = tagStore.get(defaultTagID);
-            tagDefaultGet.onsuccess = () => {
-                var defaultTag = tagDefaultGet.result as Tag;
-                defaultTag.linkedMedia.push(mediumKey);
-                tagStore.put(defaultTag);
+            const defaultTagID = this.defaultTagID;
+            mediaAddRequest.onsuccess = () => {
+                const mediumKey = mediaAddRequest.result as number;
+                const tagDefaultGet = tagStore.get(defaultTagID);
+                tagDefaultGet.onsuccess = () => {
+                    var defaultTag = tagDefaultGet.result as Tag;
+                    defaultTag.linkedMedia.push(mediumKey);
+                    tagStore.put(defaultTag);
+                };
             };
-        };
+
+            trn.oncomplete = () => resolve;
+        });
     }
 
-    public async addTag(name: string) {
+    public addTag(name: string): Promise<void> {
         if (db === null) throw IndexedDBError('AddTag, no db');
-        var trn = db.transaction(DB_TAGS, 'readwrite');
-        var tagStore = trn.objectStore(DB_TAGS);
+        return new Promise<void>((resolve) => {
+            var trn = (db as IDBDatabase).transaction(DB_TAGS, 'readwrite');
+            var tagStore = trn.objectStore(DB_TAGS);
 
-        var tag = new Tag();
-        tag.name = name;
-        tagStore.add(tag);
+            var tag = new Tag();
+            tag.name = name;
+            tagStore.add(tag);
+            trn.oncomplete = () => resolve;
+        });
+    }
+
+    public getMedia(tags: number[]): Promise<number[]> {
+        return new Promise<number[]>((resolve) => {
+            if (db === null) throw IndexedDBError('AddTag, no db');
+
+            let mediaSet = new Set<number>();
+
+            var trn = db.transaction(DB_TAGS, 'readonly');
+            var tagStore = trn.objectStore(DB_TAGS);
+
+            for (let tagKey of tags) {
+                const tagGet = tagStore.get(tagKey);
+                tagGet.onsuccess = () => {
+                    const tag = tagGet.result as Tag;
+                    for (let mediumID of tag.linkedMedia) {
+                        mediaSet.add(mediumID);
+                    }
+                };
+            }
+
+            trn.oncomplete = () => {
+                resolve(Array.from(mediaSet));
+            };
+        });
     }
 
     constructor() {

@@ -11,12 +11,15 @@ export class Reactions extends React.Component {
         super(props);
         this.state = {
             activeTags: [] as number[],
-            reactionsCount: 0,
+            matchingMedia: [] as any[],
         };
 
         this.fileRef = React.createRef();
-
         this.uploadImage = this.uploadImage.bind(this);
+    }
+
+    async componentDidMount() {
+        const matchingMedia = await globalThis.db.getMedia([1]);
     }
 
     async uploadImage(): Promise<void> {
@@ -35,10 +38,6 @@ export class Reactions extends React.Component {
                 }
                 await globalThis.db.addMedium((result.fileInfo as FileInfo).name as string);
                 uploadDataBase();
-
-                this.setState((state, props) => ({
-                    reactionsCount: state.reactionsCount + 1,
-                }));
             }
         }
     }

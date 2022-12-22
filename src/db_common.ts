@@ -4,17 +4,17 @@ import { IndexedDB } from './indexeddb/db_indexed';
 globalThis.db = new IndexedDB();
 const DB_NAME = '/reactionsvault_db';
 
-async function uploadDataBaseCallBack(db_json: string): Promise<void> {
-    var result = await system?.fs.uploadFile(DB_NAME, { content: new Blob([db_json]) }, FileUploadMode.Replace);
+export async function uploadDataBase(): Promise<void> {
+    let dbJson = await globalThis.db.export();
+
+    var result = await system?.fs.uploadFile(DB_NAME, { content: new Blob([dbJson]) }, FileUploadMode.Replace);
+
     if (!!!result) throw Error('uploadDataBaseCallBack: no result');
     if (result.status !== FileSystemStatus.Success) throw Error('Couldnt upload db, status: ' + result.status);
     if (!!!result.fileInfo) throw Error('uploadDataBaseCallBack: No fileInfo');
     if (!!!result.fileInfo.hash) throw Error('uploadDataBaseCallBack: No hash');
-    window.localStorage.setItem('db_hash', result.fileInfo.hash);
-}
 
-export async function uploadDataBase(): Promise<void> {
-    await globalThis.db.export(uploadDataBaseCallBack);
+    window.localStorage.setItem('db_hash', result.fileInfo.hash);
 }
 
 export async function loadDataBase(): Promise<void> {
