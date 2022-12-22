@@ -10,7 +10,7 @@ export class Reaction extends React.Component {
         return (
             <div>
                 <div>
-                    <input type="text" />
+                    <input type="text" autoComplete="off" />
                 </div>
                 <div className="medium">
                     <img src={this.props.img} alt="loading" />

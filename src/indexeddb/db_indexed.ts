@@ -114,6 +114,25 @@ export class IndexedDB {
         });
     }
 
+    public getAllTags(): Promise<string[]> {
+        if (db === null) throw IndexedDBError('getAllTags, no db');
+        return new Promise<string[]>((resolve) => {
+            var trn = (db as IDBDatabase).transaction(DB_TAGS, 'readonly');
+            var tagsStore = trn.objectStore(DB_TAGS);
+            let tagsGetAll = tagsStore.getAll();
+
+            var tags: string[] = [];
+            tagsGetAll.onsuccess = () => {
+                const tagsObjects = tagsGetAll.result as Tag[];
+                for (const tag of tagsObjects) {
+                    tags.push(tag.name);
+                }
+            };
+
+            trn.oncomplete = () => resolve(tags);
+        });
+    }
+
     constructor() {
         const openRequest = indexedDB.open(DB_NAME, DB_VERSION);
         openRequest.onerror = function () {

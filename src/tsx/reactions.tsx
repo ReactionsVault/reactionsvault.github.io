@@ -1,22 +1,34 @@
 import * as React from 'react';
 import { Reaction } from './reaction';
 
-import { DownloadResult, FileInfo, FileSystemStatus, FileUploadMode, UploadResult } from '../interfaces/fs_interface';
+import { FileInfo, FileSystemStatus, FileUploadMode, UploadResult } from '../interfaces/fs_interface';
 import { uploadDataBase } from '../db_common';
-import { Medium } from '../indexeddb/db_indexed';
+
+import { ReactTags } from 'react-tag-autocomplete';
 
 export class Reactions extends React.Component {
     fileRef: React.RefObject<HTMLInputElement>;
+    allTags: string[] = [];
 
     constructor(props: any) {
         super(props);
         this.state = {
             activeTags: [] as number[],
             matchingMedia: [] as any[],
+            selected: [] as any[],
+            suggestions: [
+                { value: 1, label: 'abc' },
+                { value: 3, label: 'dbc' },
+                { value: 2, label: 'dupa' },
+                { value: 40, label: 'dog' },
+                { value: 10, label: 'animal' },
+            ],
         };
 
         this.fileRef = React.createRef();
         this.uploadImage = this.uploadImage.bind(this);
+        this.onSelectTag = this.onSelectTag.bind(this);
+        this.onUnselectTag = this.onUnselectTag.bind(this);
     }
 
     async updateMatchingMedia(tagsKeys: number[]) {
@@ -40,8 +52,15 @@ export class Reactions extends React.Component {
         }
     }
 
+    async updateAllTagArray() {
+        //this.allTags = await globalThis.db.getAllTags();
+
+        this.allTags = ['test', 'dupa', 'abc', 'animals'];
+    }
+
     async componentDidMount() {
         this.updateMatchingMedia([1]);
+        this.updateAllTagArray();
     }
 
     async uploadImage(): Promise<void> {
@@ -66,6 +85,23 @@ export class Reactions extends React.Component {
             }
         }
     }
+
+    onSelectTag(tag) {
+        this.setState((state, props) => {
+            let newSelected = state.selected;
+            newSelected.push(tag);
+            return { selected: newSelected };
+        });
+    }
+
+    onUnselectTag(tagIndex: number) {
+        this.setState((state, props) => {
+            let newSelected = state.selected;
+            newSelected.splice(tagIndex, 1);
+            return { selected: newSelected };
+        });
+    }
+
     render() {
         const mediaContent = () => {
             let content = [];
@@ -76,11 +112,17 @@ export class Reactions extends React.Component {
 
             return content;
         };
-
         return (
             <div>
                 <div>
-                    <input type="text" placeholder="tags..."></input>
+                    <ReactTags
+                        onAdd={this.onSelectTag}
+                        onDelete={this.onUnselectTag}
+                        selected={this.state.selected}
+                        suggestions={this.state.suggestions}
+                        allowBackspace={true}
+                        closeOnSelect={true}
+                    />
                     <label htmlFor="add_reaction">Add reaction</label>
                     <input
                         ref={this.fileRef}

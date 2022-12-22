@@ -17,6 +17,7 @@
   "dependencies": {
     "dropbox": "^10.34.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-tag-autocomplete": "^7.0.0-rc.1"
   }
 }
