@@ -13,7 +13,7 @@ export class Reaction extends React.Component {
                     <input type="text" />
                 </div>
                 <div className="medium">
-                    <img width="500px" alt="loading" />
+                    <img src={this.props.img} alt="loading" />
                     <button>Delete</button>
                 </div>
             </div>

@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { Reaction } from './reaction';
 
-import { FileInfo, FileSystemStatus, FileUploadMode, UploadResult } from '../interfaces/fs_interface';
+import { DownloadResult, FileInfo, FileSystemStatus, FileUploadMode, UploadResult } from '../interfaces/fs_interface';
 import { uploadDataBase } from '../db_common';
+import { Medium } from '../indexeddb/db_indexed';
 
 export class Reactions extends React.Component {
     fileRef: React.RefObject<HTMLInputElement>;
@@ -18,8 +19,29 @@ export class Reactions extends React.Component {
         this.uploadImage = this.uploadImage.bind(this);
     }
 
+    async updateMatchingMedia(tagsKeys: number[]) {
+        const matchingMedia = await globalThis.db.getMediaID(tagsKeys);
+        let newState = {
+            matchingMedia: [] as any[],
+        };
+        for (let mediumID of matchingMedia) {
+            let medium = await globalThis.db.getMedium(mediumID);
+            if (!!medium) {
+                globalThis.system?.fs.downloadFile(medium.name).then((downloadResult) => {
+                    if (!!downloadResult.file && !!downloadResult.file.content) {
+                        newState.matchingMedia.push({
+                            key: mediumID,
+                            element: URL.createObjectURL(downloadResult.file.content),
+                        });
+                        this.setState(newState);
+                    }
+                });
+            }
+        }
+    }
+
     async componentDidMount() {
-        const matchingMedia = await globalThis.db.getMedia([1]);
+        this.updateMatchingMedia([1]);
     }
 
     async uploadImage(): Promise<void> {
@@ -36,18 +58,22 @@ export class Reactions extends React.Component {
                 if (result.status !== FileSystemStatus.Success) {
                     throw Error('Couldnt upload medium, status: ' + result.status);
                 }
+
                 await globalThis.db.addMedium((result.fileInfo as FileInfo).name as string);
+
+                this.updateMatchingMedia([1]);
                 uploadDataBase();
             }
         }
     }
-    //URL.createObjectURL(img_file.file.content);
     render() {
         const mediaContent = () => {
             let content = [];
-            for (let i = 0; i < this.state.reactionsCount; ++i) {
-                content.push(<Reaction key={i} />); //key is used by react to track objects
+
+            for (let medium of (this.state as any).matchingMedia) {
+                content.push(<Reaction key={medium.key} img={medium.element} />); //key is used by react to track objects
             }
+
             return content;
         };
 
@@ -65,7 +91,7 @@ export class Reactions extends React.Component {
                         accept=".mp4, .gif, image/png, image/jpeg"
                     />
                 </div>
-                {mediaContent()}
+                <div style={{ width: '30%' }}>{mediaContent()}</div>
             </div>
         );
     }

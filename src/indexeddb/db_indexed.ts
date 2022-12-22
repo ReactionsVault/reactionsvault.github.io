@@ -35,6 +35,7 @@ export class IndexedDB {
 
     public addMedium(name: string): Promise<void> {
         if (db === null) throw IndexedDBError('AddMedium, no db');
+
         return new Promise<void>((resolve) => {
             var trn = (db as IDBDatabase).transaction([DB_MEDIA, DB_TAGS], 'readwrite');
             var mediaStore = trn.objectStore(DB_MEDIA);
@@ -56,7 +57,7 @@ export class IndexedDB {
                 };
             };
 
-            trn.oncomplete = () => resolve;
+            trn.oncomplete = () => resolve();
         });
     }
 
@@ -69,17 +70,16 @@ export class IndexedDB {
             var tag = new Tag();
             tag.name = name;
             tagStore.add(tag);
-            trn.oncomplete = () => resolve;
+            trn.oncomplete = () => resolve();
         });
     }
 
-    public getMedia(tags: number[]): Promise<number[]> {
+    public getMediaID(tags: number[]): Promise<number[]> {
+        if (db === null) throw IndexedDBError('getMediaID, no db');
         return new Promise<number[]>((resolve) => {
-            if (db === null) throw IndexedDBError('AddTag, no db');
-
             let mediaSet = new Set<number>();
 
-            var trn = db.transaction(DB_TAGS, 'readonly');
+            var trn = (db as IDBDatabase).transaction(DB_TAGS, 'readonly');
             var tagStore = trn.objectStore(DB_TAGS);
 
             for (let tagKey of tags) {
@@ -95,6 +95,22 @@ export class IndexedDB {
             trn.oncomplete = () => {
                 resolve(Array.from(mediaSet));
             };
+        });
+    }
+
+    public getMedium(key: number): Promise<Medium | null> {
+        if (db === null) throw IndexedDBError('getMedium, no db');
+        return new Promise<Medium | null>((resolve) => {
+            var trn = (db as IDBDatabase).transaction(DB_MEDIA, 'readonly');
+            var mediaStore = trn.objectStore(DB_MEDIA);
+            const mediumGet = mediaStore.get(key);
+
+            var medium: Medium | null = null;
+            mediumGet.onsuccess = () => {
+                medium = mediumGet.result as Medium;
+            };
+
+            trn.oncomplete = () => resolve(medium);
         });
     }
 

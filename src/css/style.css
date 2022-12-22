@@ -4,12 +4,12 @@
       }
 
       /* Make the image responsive */
-      .container img {
+      .medium img {
         width: 100%;
         height: auto;
       }
       
-      .container button {
+      .medium button {
         position: absolute;
         height: 15%;
         width: 15%;

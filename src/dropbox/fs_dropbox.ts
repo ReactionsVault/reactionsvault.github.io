@@ -222,8 +222,6 @@ export class DropboxFS implements FSInterface {
                 throw DropboxError(uploadError);
             }
         }
-        console.log(this.calculateFileHash(file));
-        console.log(fileMeta.content_hash);
 
         var fileInfo: FileInfo = new FileInfo();
         fileInfo.hash = fileMeta.content_hash;
