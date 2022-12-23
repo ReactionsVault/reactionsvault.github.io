@@ -20,7 +20,7 @@ export class IndexedDBJSON {
                 }
             }
 
-            trn.oncomplete = () => resolve;
+            trn.oncomplete = () => resolve();
         });
     }
     public export(db: IDBDatabase): Promise<string> {

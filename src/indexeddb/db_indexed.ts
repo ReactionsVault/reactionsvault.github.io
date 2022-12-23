@@ -14,9 +14,17 @@ export class Tag {
     linkedMedia: number[] = [];
 }
 
+export class TagWithID extends Tag {
+    id: number = -1;
+}
+
 export class Medium {
     name: string = '';
     tags: number[] = [];
+}
+
+export class MediumWithID extends Medium {
+    id: number = -1;
 }
 
 var db: IDBDatabase | null = null;
@@ -98,38 +106,50 @@ export class IndexedDB {
         });
     }
 
-    public getMedium(key: number): Promise<Medium | null> {
+    public getMedium(key: number): Promise<MediumWithID | null> {
         if (db === null) throw IndexedDBError('getMedium, no db');
-        return new Promise<Medium | null>((resolve) => {
+        return new Promise<MediumWithID | null>((resolve) => {
             var trn = (db as IDBDatabase).transaction(DB_MEDIA, 'readonly');
             var mediaStore = trn.objectStore(DB_MEDIA);
             const mediumGet = mediaStore.get(key);
 
-            var medium: Medium | null = null;
+            var medium: MediumWithID | null = null;
             mediumGet.onsuccess = () => {
-                medium = mediumGet.result as Medium;
+                medium = mediumGet.result as MediumWithID;
             };
 
             trn.oncomplete = () => resolve(medium);
         });
     }
 
-    public getAllTags(): Promise<string[]> {
+    public getAllTags(): Promise<TagWithID[]> {
         if (db === null) throw IndexedDBError('getAllTags, no db');
-        return new Promise<string[]>((resolve) => {
+        return new Promise<TagWithID[]>((resolve) => {
             var trn = (db as IDBDatabase).transaction(DB_TAGS, 'readonly');
             var tagsStore = trn.objectStore(DB_TAGS);
             let tagsGetAll = tagsStore.getAll();
 
-            var tags: string[] = [];
+            var tags: TagWithID[] = [];
             tagsGetAll.onsuccess = () => {
-                const tagsObjects = tagsGetAll.result as Tag[];
-                for (const tag of tagsObjects) {
-                    tags.push(tag.name);
-                }
+                const tagsObjects = tagsGetAll.result as TagWithID[];
+                tags = tagsObjects;
             };
 
             trn.oncomplete = () => resolve(tags);
+        });
+    }
+
+    deleteDB(): Promise<void> {
+        if (db === null) throw IndexedDBError('getAllTags, no db');
+        return new Promise<void>((resolve) => {
+            const objectStores = Array.from((db as IDBDatabase).objectStoreNames);
+            const trn = (db as IDBDatabase).transaction(objectStores, 'readwrite');
+            for (let storeName of objectStores) {
+                var objectStore = trn.objectStore(storeName);
+                objectStore.clear();
+            }
+
+            trn.oncomplete = () => resolve();
         });
     }
 
@@ -166,10 +186,8 @@ export class IndexedDB {
             tagsCountRequest.onsuccess = () => {
                 const tagsCount = tagsCountRequest.result;
                 if (tagsCount === 0) {
-                    var defaultTag = {
-                        key: 1,
-                        name: '',
-                    };
+                    var defaultTag = new TagWithID();
+                    defaultTag.id = 1;
                     const tagAddRequest = tagsStore.add(defaultTag);
                     tagAddRequest.onsuccess = (e) => (idexedDBObject.defaultTagID = tagAddRequest.result as number);
                 } else {

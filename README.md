@@ -6,6 +6,8 @@ npm install
 npm run dev <-- (calls vite) start server
 npm run build <-- this outputs to `dist` dir.
 
+public dir <--- things won't be processed
+
 action to setup page build:
 https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site
 this automate build of 'dist' dir on github and deploys github page from it.
@@ -15,6 +17,7 @@ public folder is for things that shouldn't be processed https://vitejs.dev/guide
 src is for things that should be 'build'
 
 ## React:
+
 https://benediktbergmann.eu/2021/01/17/add-react-and-tests-to-a-typescript-project/  
 npm install --save react  
 npm install --save react-dom  
@@ -23,8 +26,8 @@ add
 "jsx": "react",  
 "moduleResolution": "node",  
 in  
-tsconfig.json  
+tsconfig.json
 
 add  
 [typescriptreact][javascriptreact]  
-in settings.json  
+in settings.json

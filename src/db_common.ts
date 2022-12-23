@@ -32,14 +32,17 @@ export async function loadDataBase(): Promise<void> {
             }
             var db_file = await download_result.file?.content?.text();
             if (!!!db_file) throw Error('loadDataBase: Local hash exists. Couldnt read donwloaded db');
+            await globalThis.db.deleteDB();
             globalThis.db.import(db_file);
         }
     } else {
         var download_result = await globalThis.system.fs.downloadFile(DB_NAME);
+
         switch (download_result.status) {
             case FileSystemStatus.Success:
                 var db_file = await download_result.file?.content?.text();
                 if (!!!db_file) throw Error('loadDataBase: Local hash doesnt exists. Couldnt read donwloaded db');
+                await globalThis.db.deleteDB();
                 globalThis.db.import(db_file);
 
                 if (!!!download_result.fileInfo?.hash)
