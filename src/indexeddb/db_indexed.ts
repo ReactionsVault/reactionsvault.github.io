@@ -69,15 +69,67 @@ export class IndexedDB {
         });
     }
 
-    public addTag(name: string): Promise<void> {
+    public addTag(name: string): Promise<number> {
         if (db === null) throw IndexedDBError('AddTag, no db');
-        return new Promise<void>((resolve) => {
+        return new Promise<number>((resolve) => {
             var trn = (db as IDBDatabase).transaction(DB_TAGS, 'readwrite');
             var tagStore = trn.objectStore(DB_TAGS);
 
             var tag = new Tag();
             tag.name = name;
-            tagStore.add(tag);
+            let tagAdd = tagStore.add(tag);
+            trn.oncomplete = () => resolve(tagAdd.result as number);
+        });
+    }
+
+    public linkTagToMedium(tagID: number, mediumID: number): Promise<void> {
+        if (db === null) throw IndexedDBError('linkTagToMedium, no db');
+        return new Promise<void>((resolve) => {
+            var trn = (db as IDBDatabase).transaction([DB_MEDIA, DB_TAGS], 'readwrite');
+            var mediaStore = trn.objectStore(DB_MEDIA);
+            var tagStore = trn.objectStore(DB_TAGS);
+
+            const mediumGetRequest = mediaStore.get(mediumID);
+            mediumGetRequest.onsuccess = () => {
+                const tagGetRequest = tagStore.get(tagID);
+                tagGetRequest.onsuccess = () => {
+                    let medium: MediumWithID = mediumGetRequest.result as MediumWithID;
+                    let tag: TagWithID = tagGetRequest.result as TagWithID;
+                    medium.tags.push(tagID);
+                    tag.linkedMedia.push(mediumID);
+
+                    mediaStore.put(medium);
+                    tagStore.put(tag);
+                };
+            };
+            trn.oncomplete = () => resolve();
+        });
+    }
+
+    public unlinkTagToMedium(tagID: number, mediumID: number): Promise<void> {
+        if (db === null) throw IndexedDBError('unlinkTagToMedium, no db');
+        return new Promise<void>((resolve) => {
+            var trn = (db as IDBDatabase).transaction([DB_MEDIA, DB_TAGS], 'readwrite');
+            var mediaStore = trn.objectStore(DB_MEDIA);
+            var tagStore = trn.objectStore(DB_TAGS);
+
+            const mediumGetRequest = mediaStore.get(mediumID);
+            mediumGetRequest.onsuccess = () => {
+                const tagGetRequest = tagStore.get(tagID);
+                tagGetRequest.onsuccess = () => {
+                    let medium: MediumWithID = mediumGetRequest.result as MediumWithID;
+                    let tag: TagWithID = tagGetRequest.result as TagWithID;
+
+                    const tagIDinMedium = medium.tags.indexOf(tagID);
+                    const mediumIDinTag = tag.linkedMedia.indexOf(mediumID);
+
+                    medium.tags.splice(tagIDinMedium, 1);
+                    tag.linkedMedia.splice(mediumIDinTag, 1);
+
+                    mediaStore.put(medium);
+                    tagStore.put(tag);
+                };
+            };
             trn.oncomplete = () => resolve();
         });
     }
@@ -119,6 +171,29 @@ export class IndexedDB {
             };
 
             trn.oncomplete = () => resolve(medium);
+        });
+    }
+
+    public getMediumTags(key: number): Promise<TagWithID[]> {
+        if (db === null) throw IndexedDBError('getMediumTags, no db');
+        return new Promise<TagWithID[]>((resolve) => {
+            let tags: TagWithID[] = [];
+            var trn = (db as IDBDatabase).transaction([DB_MEDIA, DB_TAGS], 'readonly');
+            var mediaStore = trn.objectStore(DB_MEDIA);
+            var tagsStore = trn.objectStore(DB_TAGS);
+
+            const mediumGetRequest = mediaStore.get(key);
+            mediumGetRequest.onsuccess = () => {
+                const medium = mediumGetRequest.result as MediumWithID;
+                for (const tagID of medium.tags) {
+                    const tagGetRequest = tagsStore.get(tagID);
+                    tagGetRequest.onsuccess = () => {
+                        tags.push(tagGetRequest.result as TagWithID);
+                    };
+                }
+            };
+
+            trn.oncomplete = () => resolve(tags);
         });
     }
 

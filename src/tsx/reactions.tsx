@@ -107,7 +107,7 @@ export class Reactions extends React.Component {
             let content = [];
 
             for (let medium of (this.state as any).matchingMedia) {
-                content.push(<Reaction key={medium.key} img={medium.element} />); //key is used by react to track objects
+                content.push(<Reaction key={medium.key} mediumID={medium.key} img={medium.element} />); //key is used by react to track objects
             }
 
             return content;
