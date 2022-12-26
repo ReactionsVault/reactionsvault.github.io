@@ -69,13 +69,15 @@ export class IndexedDB {
         });
     }
 
-    public removeMedium(key: number): Promise<void> {
+    /*returns true if tag was deleted*/
+    public removeMedium(key: number): Promise<number[]> {
         if (db === null) throw IndexedDBError('removeMedium, no db');
 
-        return new Promise<void>((resolve) => {
+        return new Promise<number[]>((resolve) => {
             var trn = (db as IDBDatabase).transaction([DB_MEDIA, DB_TAGS], 'readwrite');
             var mediaStore = trn.objectStore(DB_MEDIA);
             var tagStore = trn.objectStore(DB_TAGS);
+            let tagsDeleted: number[] = [];
 
             const mediumGetRequest = mediaStore.get(key);
             mediumGetRequest.onsuccess = () => {
@@ -84,14 +86,21 @@ export class IndexedDB {
                     const tagGetRequest = tagStore.get(tagID);
                     tagGetRequest.onsuccess = () => {
                         let tag = tagGetRequest.result as TagWithID;
-                        const mediumID = tag.linkedMedia.indexOf(key);
-                        tag.linkedMedia.splice(mediumID, 1);
+
+                        if (tag.linkedMedia.length === 1) {
+                            tagsDeleted.push(tagID);
+                            tagStore.delete(tagID);
+                        } else {
+                            const mediumID = tag.linkedMedia.indexOf(key);
+                            tag.linkedMedia.splice(mediumID, 1);
+                            tagStore.put(tag);
+                        }
                     };
                 }
             };
             mediaStore.delete(key);
 
-            trn.oncomplete = () => resolve();
+            trn.oncomplete = () => resolve(tagsDeleted);
         });
     }
 
@@ -132,12 +141,14 @@ export class IndexedDB {
         });
     }
 
-    public unlinkTagToMedium(tagID: number, mediumID: number): Promise<void> {
+    /*returns true if tag was deleted*/
+    public unlinkTagToMedium(tagID: number, mediumID: number): Promise<boolean> {
         if (db === null) throw IndexedDBError('unlinkTagToMedium, no db');
-        return new Promise<void>((resolve) => {
+        return new Promise<boolean>((resolve) => {
             var trn = (db as IDBDatabase).transaction([DB_MEDIA, DB_TAGS], 'readwrite');
             var mediaStore = trn.objectStore(DB_MEDIA);
             var tagStore = trn.objectStore(DB_TAGS);
+            let tagDeleted = false;
 
             const mediumGetRequest = mediaStore.get(mediumID);
             mediumGetRequest.onsuccess = () => {
@@ -147,16 +158,21 @@ export class IndexedDB {
                     let tag: TagWithID = tagGetRequest.result as TagWithID;
 
                     const tagIDinMedium = medium.tags.indexOf(tagID);
-                    const mediumIDinTag = tag.linkedMedia.indexOf(mediumID);
 
                     medium.tags.splice(tagIDinMedium, 1);
-                    tag.linkedMedia.splice(mediumIDinTag, 1);
+                    if (tag.linkedMedia.length === 1) {
+                        tagDeleted = true;
+                        tagStore.delete(tagID);
+                    } else {
+                        const mediumIDinTag = tag.linkedMedia.indexOf(mediumID);
+                        tag.linkedMedia.splice(mediumIDinTag, 1);
+                        tagStore.put(tag);
+                    }
 
                     mediaStore.put(medium);
-                    tagStore.put(tag);
                 };
             };
-            trn.oncomplete = () => resolve();
+            trn.oncomplete = () => resolve(tagDeleted);
         });
     }
 

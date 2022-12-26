@@ -26,10 +26,24 @@ export class TagsContainer {
         this.tagsChanged();
     }
 
-    public removeTag(tag: TagSuggestion) {
-        const tagID = this.tags.findIndex((testTag: TagSuggestion) => testTag.value === tag.value);
-        this.tags.splice(tagID, 1);
+    public removeTagByID(tagID: number) {
+        const tagArrayID = this.tags.findIndex((testTag: TagSuggestion) => testTag.value === tagID);
+        this.tags.splice(tagArrayID, 1);
         this.tagsChanged();
+    }
+
+    public removeTag(tag: TagSuggestion) {
+        this.removeTagByID(tag.value as number);
+    }
+
+    public removeTagsByID(tagsID: number[]) {
+        if (tagsID.length > 0) {
+            for (const id of tagsID) {
+                this.removeTagByID(id);
+            }
+
+            this.tagsChanged();
+        }
     }
 
     public async loadTags() {

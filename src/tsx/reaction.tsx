@@ -27,8 +27,13 @@ export class Reaction extends React.Component {
         this.onDeleteReaction = this.onDeleteReaction.bind(this);
     }
 
-    onDeleteReaction() {
-        globalThis.db.removeMedium((this.props as any).mediumID);
+    async onDeleteReaction() {
+        const tagsDeleted = await globalThis.db.removeMedium((this.props as any).mediumID);
+        globalThis.tags.removeTagsByID(tagsDeleted);
+        if (tagsDeleted.length > 0) {
+            uploadDataBase();
+        }
+
         (this.props as any).removeMedium((this.props as any).mediumID);
     }
 
@@ -59,10 +64,15 @@ export class Reaction extends React.Component {
     //input is id in selected
     async onUnselectTag(tagIndex: number) {
         const tag = this.selectedTags[tagIndex] as TagSuggestion;
-        await globalThis.db.unlinkTagToMedium(tag.value as number, (this.props as any).mediumID);
+        const tagDeleted = await globalThis.db.unlinkTagToMedium(tag.value as number, (this.props as any).mediumID);
         uploadDataBase();
 
         this.selectedTags.splice(tagIndex, 1);
+
+        if (tagDeleted) {
+            globalThis.tags.removeTag(tag);
+        }
+
         this.setState((state: State) => {
             return { selectedTagsVersion: state.selectedTagsVersion + 1 };
         });

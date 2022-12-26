@@ -84,7 +84,7 @@ export class Reactions extends React.Component {
     }
 
     async componentDidMount() {
-        this.updateMatchingMedia([1]);
+        this.updateMatchingMedia([globalThis.db.defaultTagID]);
         this.updateAllTagArray();
     }
 
@@ -97,6 +97,7 @@ export class Reactions extends React.Component {
     }
 
     async uploadImage(): Promise<void> {
+        console.log('upload');
         const fileElement = this.fileRef.current as HTMLInputElement;
         if (!!fileElement.files && fileElement.files.length > 0) {
             const file = fileElement.files[0];
@@ -113,7 +114,7 @@ export class Reactions extends React.Component {
 
                 await globalThis.db.addMedium((result.fileInfo as FileInfo).name as string);
 
-                this.updateMatchingMedia([1]);
+                this.updateMatchingMedia([globalThis.db.defaultTagID]);
                 uploadDataBase();
             }
         }
@@ -170,6 +171,7 @@ export class Reactions extends React.Component {
                     <input
                         ref={this.fileRef}
                         onChange={this.uploadImage}
+                        onClick={() => ((this.fileRef.current as HTMLInputElement).value = '')}
                         type="file"
                         id="add_reaction"
                         style={{ visibility: 'hidden' }}
