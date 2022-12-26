@@ -1,13 +1,10 @@
-export class ReactTagObject {
-    value: number | string = -1;
-    label: string = '';
-}
+import { TagSuggestion } from 'react-tag-autocomplete';
 
 export class TagsContainer {
-    tags: ReactTagObject[] = [];
+    tags: TagSuggestion[] = [];
     callbackChange: Map<any, (caller: any) => void> = new Map<any, (caller: any) => void>();
 
-    public getTags(): ReactTagObject[] {
+    public getTags(): TagSuggestion[] {
         return this.tags;
     }
 
@@ -24,13 +21,13 @@ export class TagsContainer {
         }
     }
 
-    public addTag(tag: ReactTagObject) {
+    public addTag(tag: TagSuggestion) {
         this.tags.push(tag);
         this.tagsChanged();
     }
 
-    public removeTag(tag: ReactTagObject) {
-        const tagID = this.tags.findIndex((testTag: ReactTagObject) => testTag.value === tag.value);
+    public removeTag(tag: TagSuggestion) {
+        const tagID = this.tags.findIndex((testTag: TagSuggestion) => testTag.value === tag.value);
         this.tags.splice(tagID, 1);
         this.tagsChanged();
     }

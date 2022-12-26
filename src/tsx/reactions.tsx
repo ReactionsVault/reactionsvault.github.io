@@ -6,19 +6,27 @@ import { uploadDataBase } from '../db_common';
 
 import { ReactTags } from 'react-tag-autocomplete';
 
-import { TagsContainer, ReactTagObject } from '../tagsContainer';
+import { TagsContainer } from '../tagsContainer';
+
+import { TagSuggestion } from 'react-tag-autocomplete';
 
 class State {
     matchingMediaVersion = 0;
     selectedTagsVersion = 0;
-    tagsVersion = 0;
+    tags: TagSuggestion[] = [];
+}
+
+function callbackTagsChanged(reaction: Reactions) {
+    reaction.setState((state: State) => {
+        return { tags: Array.from(globalThis.tags.getTags()) };
+    });
 }
 
 export class Reactions extends React.Component {
     fileRef: React.RefObject<HTMLInputElement>;
 
     matchingMedia: any[] = [];
-    selectedTags: ReactTagObject[] = [];
+    selectedTags: TagSuggestion[] = [];
 
     constructor(props: any) {
         super(props);
@@ -28,12 +36,6 @@ export class Reactions extends React.Component {
         this.uploadImage = this.uploadImage.bind(this);
         this.onSelectTag = this.onSelectTag.bind(this);
         this.onUnselectTag = this.onUnselectTag.bind(this);
-    }
-
-    callbackTagsChanged(reaction: Reactions) {
-        reaction.setState((state: State) => {
-            return { tagsVersion: state.tagsVersion + 1 };
-        });
     }
 
     async updateMatchingMedia(tagsKeys: number[]) {
@@ -61,10 +63,8 @@ export class Reactions extends React.Component {
     async updateAllTagArray() {
         globalThis.tags = new TagsContainer();
         await globalThis.tags.loadTags();
-        globalThis.tags.registerCallback(this, this.callbackTagsChanged);
-        this.setState((state: State) => {
-            return { tagsVersion: state.tagsVersion + 1 };
-        });
+        globalThis.tags.registerCallback(this, callbackTagsChanged);
+        callbackTagsChanged(this);
     }
 
     async componentDidMount() {
@@ -95,7 +95,7 @@ export class Reactions extends React.Component {
         }
     }
 
-    onSelectTag(tag: ReactTagObject) {
+    onSelectTag(tag: TagSuggestion) {
         this.selectedTags.push(tag);
         this.setState((state: State) => {
             return { selectedTagsVersion: state.selectedTagsVersion + 1 };
@@ -129,7 +129,7 @@ export class Reactions extends React.Component {
                         onAdd={this.onSelectTag}
                         onDelete={this.onUnselectTag}
                         selected={this.selectedTags}
-                        suggestions={globalThis.tags.getTags()}
+                        suggestions={(this.state as State).tags}
                         allowBackspace={true}
                         closeOnSelect={true}
                     />
