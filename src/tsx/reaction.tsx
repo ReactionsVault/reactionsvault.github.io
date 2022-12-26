@@ -2,85 +2,77 @@ import '../css/style.css';
 import * as React from 'react';
 
 import { ReactTags } from 'react-tag-autocomplete';
-import { TagWithID } from '../indexeddb/db_indexed';
 import { uploadDataBase } from '../db_common';
+import { TagsContainer, ReactTagObject } from '../tagsContainer';
 
-class TagReactStore {
-    value: number | string = -1; //tag ID
-    label: string = '';
+class State {
+    selectedTagsVersion = 0;
+    tagsVersion = 0;
 }
 
 export class Reaction extends React.Component {
+    selectedTags: ReactTagObject[] = [];
+
     constructor(props: any) {
         super(props);
-        this.state = {
-            selected: [] as number[],
-            suggestions: [] as any[],
-        };
+        this.state = new State();
 
         this.onSelectTag = this.onSelectTag.bind(this);
         this.onUnselectTag = this.onUnselectTag.bind(this);
     }
 
+    callbackTagsChanged(reaction: Reaction) {
+        reaction.setState((state: State) => {
+            return { tagsVersion: state.tagsVersion + 1 };
+        });
+    }
+
     //input is object for suggestions
     //new tags value = name
-    async onSelectTag(tag: TagReactStore) {
+    async onSelectTag(tag: ReactTagObject) {
         const isTagNew = tag.value === tag.label;
         var tagID = tag.value;
         if (isTagNew) {
             tagID = await globalThis.db.addTag(tag.label);
         }
 
+        const selectedTag = { value: tagID, label: tag.label };
+
         await globalThis.db.linkTagToMedium(tagID as number, (this.props as any).mediumID);
         uploadDataBase();
-        this.setState((state, props) => {
-            let newSelected = (state as any).selected;
-            newSelected.push(tag);
 
-            if (isTagNew) {
-                let newSuggestions = (state as any).suggestions;
-                newSuggestions.push({ value: tagID, label: tag.label });
-                return { selected: newSelected, suggestions: newSuggestions };
-            }
-            return { selected: newSelected };
+        this.selectedTags.push(selectedTag);
+        if (isTagNew) {
+            globalThis.tags.addTag(selectedTag);
+        }
+
+        this.setState((state: State) => {
+            return { selectedTagsVersion: state.selectedTagsVersion + 1 };
         });
     }
 
     //input is id in selected
     async onUnselectTag(tagIndex: number) {
-        const tag = (this.state as any).selected[tagIndex] as TagReactStore;
+        const tag = this.selectedTags[tagIndex] as ReactTagObject;
         await globalThis.db.unlinkTagToMedium(tag.value as number, (this.props as any).mediumID);
         uploadDataBase();
 
-        this.setState((state, props) => {
-            let newSelected = (state as any).selected;
-            newSelected.splice(tagIndex, 1);
-            return { selected: newSelected };
+        this.selectedTags.splice(tagIndex, 1);
+        this.setState((state: State) => {
+            return { selectedTagsVersion: state.selectedTagsVersion + 1 };
         });
     }
 
     async componentDidMount() {
-        let tags = await globalThis.db.getAllTags();
-
-        let suggestionsTags: any[] = [];
-        for (let tag of tags) {
-            if (tag.name !== '') {
-                suggestionsTags.push({ value: tag.id, label: tag.name });
-            }
-        }
-
         const mediumID = (this.props as any).mediumID;
         const mediumTags = await globalThis.db.getMediumTags(mediumID);
-        let selectedTags: any[] = [];
         for (let tag of mediumTags) {
             if (tag.name !== '') {
-                selectedTags.push({ value: tag.id, label: tag.name });
+                this.selectedTags.push({ value: tag.id, label: tag.name });
             }
         }
 
-        this.setState((state, props) => {
-            return { suggestions: suggestionsTags, selected: selectedTags };
-        });
+        globalThis.tags.registerCallback(this, this.callbackTagsChanged);
     }
 
     render() {
@@ -90,8 +82,8 @@ export class Reaction extends React.Component {
                     <ReactTags
                         onAdd={this.onSelectTag}
                         onDelete={this.onUnselectTag}
-                        selected={(this.state as any).selected}
-                        suggestions={(this.state as any).suggestions}
+                        selected={this.selectedTags}
+                        suggestions={globalThis.tags.getTags()}
                         allowBackspace
                         closeOnSelect
                         allowNew

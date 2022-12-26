@@ -6,24 +6,23 @@ import { uploadDataBase } from '../db_common';
 
 import { ReactTags } from 'react-tag-autocomplete';
 
+import { TagsContainer, ReactTagObject } from '../tagsContainer';
+
+class State {
+    matchingMediaVersion = 0;
+    selectedTagsVersion = 0;
+    tagsVersion = 0;
+}
+
 export class Reactions extends React.Component {
     fileRef: React.RefObject<HTMLInputElement>;
-    allTags: string[] = [];
+
+    matchingMedia: any[] = [];
+    selectedTags: ReactTagObject[] = [];
 
     constructor(props: any) {
         super(props);
-        this.state = {
-            activeTags: [] as number[],
-            matchingMedia: [] as any[],
-            selected: [] as any[],
-            suggestions: [
-                { value: 1, label: 'abc' },
-                { value: 3, label: 'dbc' },
-                { value: 2, label: 'dupa' },
-                { value: 40, label: 'dog' },
-                { value: 10, label: 'animal' },
-            ],
-        };
+        this.state = new State();
 
         this.fileRef = React.createRef();
         this.uploadImage = this.uploadImage.bind(this);
@@ -31,21 +30,28 @@ export class Reactions extends React.Component {
         this.onUnselectTag = this.onUnselectTag.bind(this);
     }
 
+    callbackTagsChanged(reaction: Reactions) {
+        reaction.setState((state: State) => {
+            return { tagsVersion: state.tagsVersion + 1 };
+        });
+    }
+
     async updateMatchingMedia(tagsKeys: number[]) {
+        this.matchingMedia.length = 0;
+
         const matchingMedia = await globalThis.db.getMediaID(tagsKeys);
-        let newState = {
-            matchingMedia: [] as any[],
-        };
         for (let mediumID of matchingMedia) {
             let medium = await globalThis.db.getMedium(mediumID);
             if (!!medium) {
                 globalThis.system?.fs.downloadFile(medium.name).then((downloadResult) => {
                     if (!!downloadResult.file && !!downloadResult.file.content) {
-                        newState.matchingMedia.push({
+                        this.matchingMedia.push({
                             key: mediumID,
                             element: URL.createObjectURL(downloadResult.file.content),
                         });
-                        this.setState(newState);
+                        this.setState((state: State) => {
+                            return { matchingMediaVersion: state.matchingMediaVersion + 1 };
+                        });
                     }
                 });
             }
@@ -53,9 +59,12 @@ export class Reactions extends React.Component {
     }
 
     async updateAllTagArray() {
-        //this.allTags = await globalThis.db.getAllTags();
-
-        this.allTags = ['test', 'dupa', 'abc', 'animals'];
+        globalThis.tags = new TagsContainer();
+        await globalThis.tags.loadTags();
+        globalThis.tags.registerCallback(this, this.callbackTagsChanged);
+        this.setState((state: State) => {
+            return { tagsVersion: state.tagsVersion + 1 };
+        });
     }
 
     async componentDidMount() {
@@ -86,27 +95,28 @@ export class Reactions extends React.Component {
         }
     }
 
-    onSelectTag(tag) {
-        this.setState((state, props) => {
-            let newSelected = state.selected;
-            newSelected.push(tag);
-            return { selected: newSelected };
+    onSelectTag(tag: ReactTagObject) {
+        this.selectedTags.push(tag);
+        this.setState((state: State) => {
+            return { selectedTagsVersion: state.selectedTagsVersion + 1 };
         });
     }
 
     onUnselectTag(tagIndex: number) {
-        this.setState((state, props) => {
-            let newSelected = state.selected;
-            newSelected.splice(tagIndex, 1);
-            return { selected: newSelected };
+        this.selectedTags.splice(tagIndex, 1);
+        this.setState((state: State) => {
+            return { selectedTagsVersion: state.selectedTagsVersion + 1 };
         });
     }
 
     render() {
+        if (!!!globalThis.tags) {
+            globalThis.tags = new TagsContainer();
+        }
         const mediaContent = () => {
             let content = [];
 
-            for (let medium of (this.state as any).matchingMedia) {
+            for (let medium of this.matchingMedia) {
                 content.push(<Reaction key={medium.key} mediumID={medium.key} img={medium.element} />); //key is used by react to track objects
             }
 
@@ -118,8 +128,8 @@ export class Reactions extends React.Component {
                     <ReactTags
                         onAdd={this.onSelectTag}
                         onDelete={this.onUnselectTag}
-                        selected={this.state.selected}
-                        suggestions={this.state.suggestions}
+                        selected={this.selectedTags}
+                        suggestions={globalThis.tags.getTags()}
                         allowBackspace={true}
                         closeOnSelect={true}
                     />
