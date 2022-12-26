@@ -1,5 +1,2 @@
-//export const REDIRECT_URI = 'http://localhost:5173/'; //you need this for redirection, otherwise it just shows Dropbox page with key that you need to enter in app
-//export const CLIENT_ID = 'n5f5arc8a4aa3fq'; //app key
-
-export const REDIRECT_URI = 'https://reactionsvault.github.io/';
-export const CLIENT_ID = 'x9vizg3tkvrrleu';
+export const REDIRECT_URI = import.meta.env.VITE_DROPBOX_REDIRECT_URI; //you need this for redirection, otherwise it just shows Dropbox page with key that you need to enter in app
+export const CLIENT_ID = import.meta.env.VITE_DROPBOX_CLIENT_ID; //app key
