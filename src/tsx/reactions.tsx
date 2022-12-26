@@ -43,6 +43,9 @@ export class Reactions extends React.Component {
         this.onSelectTag = this.onSelectTag.bind(this);
         this.onUnselectTag = this.onUnselectTag.bind(this);
         this.removeMedium = this.removeMedium.bind(this);
+        this.onDrop = this.onDrop.bind(this);
+        this.onDragOver = this.onDragOver.bind(this);
+        this.onDragEnter = this.onDragEnter.bind(this);
     }
 
     async updateMatchingMedia(tagsKeys: number[]) {
@@ -96,27 +99,58 @@ export class Reactions extends React.Component {
         });
     }
 
+    async uploadFileInternal(file: File): Promise<void> {
+        if (!!file) {
+            var result = (await globalThis.system?.fs.uploadFile(
+                '/' + file.name,
+                { content: file },
+                FileUploadMode.Add
+            )) as UploadResult;
+
+            if (result.status !== FileSystemStatus.Success) {
+                throw Error('Couldnt upload medium, status: ' + result.status);
+            }
+
+            await globalThis.db.addMedium((result.fileInfo as FileInfo).name as string);
+
+            this.updateMatchingMedia([globalThis.db.defaultTagID]);
+            uploadDataBase();
+        }
+    }
+
     async uploadImage(): Promise<void> {
-        console.log('upload');
         const fileElement = this.fileRef.current as HTMLInputElement;
         if (!!fileElement.files && fileElement.files.length > 0) {
             const file = fileElement.files[0];
-            if (!!file) {
-                var result = (await globalThis.system?.fs.uploadFile(
-                    '/' + file.name,
-                    { content: file },
-                    FileUploadMode.Add
-                )) as UploadResult;
+            this.uploadFileInternal(file);
+        }
+    }
 
-                if (result.status !== FileSystemStatus.Success) {
-                    throw Error('Couldnt upload medium, status: ' + result.status);
+    onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+        e.preventDefault();
+    };
+
+    onDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+        e.stopPropagation();
+    };
+
+    onDrop(ev: React.DragEvent<HTMLDivElement>) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (ev.dataTransfer.items) {
+            [...ev.dataTransfer.items].forEach((item) => {
+                // If dropped items aren't files, reject them
+                if (item.kind === 'file') {
+                    const file = item.getAsFile();
+                    if (!!file) this.uploadFileInternal(file);
                 }
-
-                await globalThis.db.addMedium((result.fileInfo as FileInfo).name as string);
-
-                this.updateMatchingMedia([globalThis.db.defaultTagID]);
-                uploadDataBase();
-            }
+            });
+        } else {
+            // Use DataTransfer interface to access the file(s)
+            [...ev.dataTransfer.files].forEach((file) => {
+                this.uploadFileInternal(file);
+            });
         }
     }
 
@@ -157,7 +191,7 @@ export class Reactions extends React.Component {
             return content;
         };
         return (
-            <div>
+            <div onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragOver={this.onDragOver}>
                 <div>
                     <ReactTags
                         onAdd={this.onSelectTag}

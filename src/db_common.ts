@@ -25,6 +25,8 @@ export async function loadDataBase(): Promise<void> {
     var db_hash: string | null = window.localStorage.getItem('db_hash');
     if (!!db_hash) {
         var test_db_hash = await globalThis.system.fs.getFileHash(DB_NAME);
+        console.log(db_hash);
+        console.log(test_db_hash);
         if (db_hash !== test_db_hash) {
             var download_result = await globalThis.system.fs.downloadFile(DB_NAME);
             if (download_result.status !== FileSystemStatus.Success) {
