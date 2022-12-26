@@ -24,6 +24,12 @@ export class Reaction extends React.Component {
 
         this.onSelectTag = this.onSelectTag.bind(this);
         this.onUnselectTag = this.onUnselectTag.bind(this);
+        this.onDeleteReaction = this.onDeleteReaction.bind(this);
+    }
+
+    onDeleteReaction() {
+        globalThis.db.removeMedium((this.props as any).mediumID);
+        (this.props as any).removeMedium((this.props as any).mediumID);
     }
 
     //input is object for suggestions
@@ -91,7 +97,7 @@ export class Reaction extends React.Component {
                 </div>
                 <div className="medium">
                     <img src={(this.props as any).img} alt="loading" />
-                    <button>Delete</button>
+                    <button onClick={this.onDeleteReaction}>Delete</button>
                 </div>
             </div>
         );

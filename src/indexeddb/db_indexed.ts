@@ -69,6 +69,32 @@ export class IndexedDB {
         });
     }
 
+    public removeMedium(key: number): Promise<void> {
+        if (db === null) throw IndexedDBError('removeMedium, no db');
+
+        return new Promise<void>((resolve) => {
+            var trn = (db as IDBDatabase).transaction([DB_MEDIA, DB_TAGS], 'readwrite');
+            var mediaStore = trn.objectStore(DB_MEDIA);
+            var tagStore = trn.objectStore(DB_TAGS);
+
+            const mediumGetRequest = mediaStore.get(key);
+            mediumGetRequest.onsuccess = () => {
+                const medium = mediumGetRequest.result as MediumWithID;
+                for (const tagID of medium.tags) {
+                    const tagGetRequest = tagStore.get(tagID);
+                    tagGetRequest.onsuccess = () => {
+                        let tag = tagGetRequest.result as TagWithID;
+                        const mediumID = tag.linkedMedia.indexOf(key);
+                        tag.linkedMedia.splice(mediumID, 1);
+                    };
+                }
+            };
+            mediaStore.delete(key);
+
+            trn.oncomplete = () => resolve();
+        });
+    }
+
     public addTag(name: string): Promise<number> {
         if (db === null) throw IndexedDBError('AddTag, no db');
         return new Promise<number>((resolve) => {

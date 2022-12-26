@@ -42,10 +42,15 @@ export class Reactions extends React.Component {
         this.uploadImage = this.uploadImage.bind(this);
         this.onSelectTag = this.onSelectTag.bind(this);
         this.onUnselectTag = this.onUnselectTag.bind(this);
+        this.removeMedium = this.removeMedium.bind(this);
     }
 
     async updateMatchingMedia(tagsKeys: number[]) {
         this.matchingMedia.length = 0;
+
+        if (tagsKeys.length === 0) {
+            tagsKeys = [globalThis.db.defaultTagID];
+        }
 
         const matchingMedia = await globalThis.db.getMediaID(tagsKeys);
         for (let mediumID of matchingMedia) {
@@ -81,6 +86,14 @@ export class Reactions extends React.Component {
     async componentDidMount() {
         this.updateMatchingMedia([1]);
         this.updateAllTagArray();
+    }
+
+    removeMedium(mediumID: number) {
+        const matchingID = this.matchingMedia.findIndex((medium) => medium.id === mediumID);
+        this.matchingMedia.splice(matchingID, 1);
+        this.setState((state: State) => {
+            return { matchingMediaVersion: state.matchingMediaVersion + 1 };
+        });
     }
 
     async uploadImage(): Promise<void> {
@@ -130,7 +143,14 @@ export class Reactions extends React.Component {
             let content = [];
 
             for (let medium of this.matchingMedia) {
-                content.push(<Reaction key={medium.id} mediumID={medium.id} img={medium.content} />); //key is used by react to track objects
+                content.push(
+                    <Reaction
+                        key={medium.id}
+                        removeMedium={this.removeMedium}
+                        mediumID={medium.id}
+                        img={medium.content}
+                    />
+                ); //key is used by react to track objects
             }
 
             return content;
