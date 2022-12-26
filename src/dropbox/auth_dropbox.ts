@@ -1,9 +1,7 @@
 import { DropboxError, DROPBOX_APP } from './dropbox_common';
 import * as DropboxAPI from 'dropbox';
 import { AuthInterface, AuthData } from '../interfaces/auth_interface';
-
-const REDIRECT_URI = 'http://localhost:5173/'; //you need this for redirection, otherwise it just shows Dropbox page with key that you need to enter in app
-const CLIENT_ID = 'n5f5arc8a4aa3fq'; //app key
+import { REDIRECT_URI, CLIENT_ID } from './app_dropbox';
 
 export class DropboxAuth implements AuthInterface {
     private dbxAuth: DropboxAPI.DropboxAuth;
