@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Reaction } from './reaction';
 
-import { FileInfo, FileSystemStatus, FileUploadMode, UploadResult } from '../interfaces/fs_interface';
+import { DownloadResult, FileInfo, FileSystemStatus, FileUploadMode, UploadResult } from '../interfaces/fs_interface';
 import { uploadDataBase } from '../db_common';
 
 import { ReactTags } from 'react-tag-autocomplete';
@@ -16,6 +16,11 @@ class State {
     tags: TagSuggestion[] = [];
 }
 
+class MatchingMedium {
+    id = -1;
+    content = '';
+}
+
 function callbackTagsChanged(reaction: Reactions) {
     reaction.setState((state: State) => {
         return { tags: Array.from(globalThis.tags.getTags()) };
@@ -25,7 +30,8 @@ function callbackTagsChanged(reaction: Reactions) {
 export class Reactions extends React.Component {
     fileRef: React.RefObject<HTMLInputElement>;
 
-    matchingMedia: any[] = [];
+    fileCache: Map<string, string> = new Map<string, string>();
+    matchingMedia: MatchingMedium[] = [];
     selectedTags: TagSuggestion[] = [];
 
     constructor(props: any) {
@@ -45,16 +51,21 @@ export class Reactions extends React.Component {
         for (let mediumID of matchingMedia) {
             let medium = await globalThis.db.getMedium(mediumID);
             if (!!medium) {
-                globalThis.system?.fs.downloadFile(medium.name).then((downloadResult) => {
+                var file = this.fileCache.get(medium.name);
+                if (!!!file) {
+                    const downloadResult = (await globalThis.system?.fs.downloadFile(medium.name)) as DownloadResult;
                     if (!!downloadResult.file && !!downloadResult.file.content) {
-                        this.matchingMedia.push({
-                            key: mediumID,
-                            element: URL.createObjectURL(downloadResult.file.content),
-                        });
-                        this.setState((state: State) => {
-                            return { matchingMediaVersion: state.matchingMediaVersion + 1 };
-                        });
+                        const urlObject = URL.createObjectURL(downloadResult.file.content);
+                        this.fileCache.set(medium.name, urlObject);
+                        file = urlObject;
                     }
+                }
+                this.matchingMedia.push({
+                    id: mediumID,
+                    content: file as string,
+                });
+                this.setState((state: State) => {
+                    return { matchingMediaVersion: state.matchingMediaVersion + 1 };
                 });
             }
         }
@@ -97,6 +108,7 @@ export class Reactions extends React.Component {
 
     onSelectTag(tag: TagSuggestion) {
         this.selectedTags.push(tag);
+        this.updateMatchingMedia(this.selectedTags.map((tag) => tag.value as number));
         this.setState((state: State) => {
             return { selectedTagsVersion: state.selectedTagsVersion + 1 };
         });
@@ -104,6 +116,7 @@ export class Reactions extends React.Component {
 
     onUnselectTag(tagIndex: number) {
         this.selectedTags.splice(tagIndex, 1);
+        this.updateMatchingMedia(this.selectedTags.map((tag) => tag.value as number));
         this.setState((state: State) => {
             return { selectedTagsVersion: state.selectedTagsVersion + 1 };
         });
@@ -117,7 +130,7 @@ export class Reactions extends React.Component {
             let content = [];
 
             for (let medium of this.matchingMedia) {
-                content.push(<Reaction key={medium.key} mediumID={medium.key} img={medium.element} />); //key is used by react to track objects
+                content.push(<Reaction key={medium.id} mediumID={medium.id} img={medium.content} />); //key is used by react to track objects
             }
 
             return content;
