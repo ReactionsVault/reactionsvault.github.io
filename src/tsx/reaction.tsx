@@ -9,13 +9,19 @@ class State {
     tags: TagSuggestion[] = [];
 }
 
+class Props {
+    removeMedium: ((id: number) => void) | null = null;
+    mediumID: number = -1;
+    img: string = '';
+}
+
 function callbackTagsChanged(reaction: Reaction) {
-    reaction.setState((state: State) => {
+    reaction.setState(() => {
         return { tags: Array.from(globalThis.tags.getTags()) };
     });
 }
 
-export class Reaction extends React.Component {
+export class Reaction extends React.Component<Props, State> {
     selectedTags: TagSuggestion[] = [];
 
     constructor(props: any) {

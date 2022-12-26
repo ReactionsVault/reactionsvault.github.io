@@ -22,7 +22,7 @@ class MatchingMedium {
 }
 
 function callbackTagsChanged(reaction: Reactions) {
-    reaction.setState((state: State) => {
+    reaction.setState(() => {
         return { tags: Array.from(globalThis.tags.getTags()) };
     });
 }

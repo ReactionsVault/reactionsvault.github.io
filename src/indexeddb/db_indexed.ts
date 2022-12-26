@@ -306,7 +306,7 @@ export class IndexedDB {
                     var defaultTag = new TagWithID();
                     defaultTag.id = 1;
                     const tagAddRequest = tagsStore.add(defaultTag);
-                    tagAddRequest.onsuccess = (e) => (idexedDBObject.defaultTagID = tagAddRequest.result as number);
+                    tagAddRequest.onsuccess = () => (idexedDBObject.defaultTagID = tagAddRequest.result as number);
                 } else {
                     idexedDBObject.defaultTagID = 1;
                 }
