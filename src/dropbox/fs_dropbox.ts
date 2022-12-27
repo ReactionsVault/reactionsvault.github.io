@@ -272,13 +272,13 @@ export class DropboxFS implements FSInterface {
         }
 
         const fileMeta = respond.result as any;
-
         const fileExtension = fileMeta.path_lower.split('.').pop();
-        let fileType = 'image/png';
+        let fileType = '';
         switch (fileExtension) {
             case 'png':
             case 'jpg': // only png can be copied to clipboard, it should get converted
             case 'jpeg':
+                fileType = 'image/png';
                 break;
             case 'gif':
                 fileType = 'image/gif';
@@ -286,11 +286,11 @@ export class DropboxFS implements FSInterface {
             case 'mp4':
                 fileType = 'video/mp4';
                 break;
-            default:
-                throw DropboxError('Unknown extension: ' + fileMeta.path_lower);
         }
 
-        const file = { content: fileMeta.fileBlob.slice(0, fileMeta.fileBlob.size, fileType) };
+        const file = !!fileType
+            ? { content: fileMeta.fileBlob.slice(0, fileMeta.fileBlob.size, fileType) }
+            : { content: fileMeta.fileBlob };
         const fileHash: string = await this.calculateFileHash(file);
 
         if (fileHash !== fileMeta.content_hash) {
