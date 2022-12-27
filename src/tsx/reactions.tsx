@@ -212,7 +212,7 @@ export class Reactions extends React.Component {
                         accept=".mp4, .gif, image/png, image/jpeg"
                     />
                 </div>
-                <div style={{ width: '30%' }}>{mediaContent()}</div>
+                <div>{mediaContent()}</div>
             </div>
         );
     }
