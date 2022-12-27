@@ -47,20 +47,19 @@ export class Reaction extends React.Component<Props, State> {
     //new tags value = name
     async onSelectTag(tag: TagSuggestion) {
         const isTagNew = tag.value === tag.label;
-        var tagID = tag.value;
         if (isTagNew) {
-            tagID = await globalThis.db.addTag(tag.label);
+            tag.value = await globalThis.db.addTag(tag.label);
+            tag.label = tag.label.toLowerCase();
         }
 
-        const selectedTag = { value: tagID, label: tag.label };
         if (isTagNew) {
-            globalThis.tags.addTag(selectedTag);
+            globalThis.tags.addTag(tag);
         }
 
-        await globalThis.db.linkTagToMedium(tagID as number, (this.props as any).mediumID);
+        await globalThis.db.linkTagToMedium(tag.value as number, (this.props as any).mediumID);
         uploadDataBase();
 
-        this.selectedTags.push(selectedTag);
+        this.selectedTags.push(tag);
 
         this.setState((state: State) => {
             return { selectedTagsVersion: state.selectedTagsVersion + 1 };
