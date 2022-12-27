@@ -18,7 +18,8 @@ class State {
 
 class MatchingMedium {
     id = -1;
-    content = '';
+    contentURL = '';
+    contentFile: Blob | null = null;
 }
 
 function callbackTagsChanged(reaction: Reactions) {
@@ -27,10 +28,15 @@ function callbackTagsChanged(reaction: Reactions) {
     });
 }
 
+class MatchingMediumCache {
+    contentURL = '';
+    contentFile: Blob | null = null;
+}
+
 export class Reactions extends React.Component {
     fileRef: React.RefObject<HTMLInputElement>;
 
-    fileCache: Map<string, string> = new Map<string, string>();
+    fileCache: Map<string, MatchingMediumCache> = new Map<string, MatchingMediumCache>();
     matchingMedia: MatchingMedium[] = [];
     selectedTags: TagSuggestion[] = [];
 
@@ -46,7 +52,7 @@ export class Reactions extends React.Component {
         this.onDrop = this.onDrop.bind(this);
         this.onDragOver = this.onDragOver.bind(this);
         this.onDragEnter = this.onDragEnter.bind(this);
-        this.onPast = this.onPast.bind(this);
+        this.onPaste = this.onPaste.bind(this);
     }
 
     async updateMatchingMedia(tagsKeys: number[]) {
@@ -65,14 +71,20 @@ export class Reactions extends React.Component {
                     const downloadResult = (await globalThis.system?.fs.downloadFile(medium.name)) as DownloadResult;
                     if (!!downloadResult.file && !!downloadResult.file.content) {
                         const urlObject = URL.createObjectURL(downloadResult.file.content);
-                        this.fileCache.set(medium.name, urlObject);
-                        file = urlObject;
+                        const fileCacheObject: MatchingMediumCache = {
+                            contentURL: urlObject,
+                            contentFile: downloadResult.file.content,
+                        };
+
+                        this.fileCache.set(medium.name, fileCacheObject);
+                        file = fileCacheObject;
                     }
                 }
 
                 const matchingMedium: MatchingMedium = {
                     id: mediumID,
-                    content: file as string,
+                    contentURL: file?.contentURL as string,
+                    contentFile: file?.contentFile as Blob,
                 };
                 if (medium.tags.length === 1) {
                     this.matchingMedia.unshift(matchingMedium);
@@ -161,7 +173,7 @@ export class Reactions extends React.Component {
         }
     }
 
-    onPast(ev: React.ClipboardEvent<HTMLDivElement>) {
+    onPaste(ev: React.ClipboardEvent<HTMLDivElement>) {
         let file = ev.clipboardData.files[0];
         if (!!file) {
             ev.preventDefault();
@@ -199,7 +211,8 @@ export class Reactions extends React.Component {
                         key={medium.id}
                         removeMedium={this.removeMedium}
                         mediumID={medium.id}
-                        img={medium.content}
+                        img={medium.contentURL}
+                        imgFile={medium.contentFile}
                     />
                 ); //key is used by react to track objects
             }
@@ -207,7 +220,11 @@ export class Reactions extends React.Component {
             return content;
         };
         return (
-            <div onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragOver={this.onDragOver} onPaste={this.onPast}>
+            <div
+                onDrop={this.onDrop}
+                onDragEnter={this.onDragEnter}
+                onDragOver={this.onDragOver}
+                onPaste={this.onPaste}>
                 <div>
                     <ReactTags
                         onAdd={this.onSelectTag}

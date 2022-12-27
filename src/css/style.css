@@ -20,6 +20,37 @@
 }
 
 
+.overlay-container {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  background-color: rgb(255, 255, 255);
+  opacity: 0;
+}
+
+.overlay-icon {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: scale-down;
+  opacity: 0.0;
+  background-color: rgba(255, 255, 255, 0.5)
+}
+
+.overlay-container:hover { 
+  opacity: 0.5;
+  cursor: pointer;
+}
+
+.overlay-container:hover .overlay-icon { 
+  opacity: 1.0;
+  cursor: pointer;
+}
 
 /*https://github.com/i-like-robots/react-tag-autocomplete/blob/main/example/src/styles.css*/
 .react-tags {
@@ -173,4 +204,3 @@
   background: #4f46e5;
   color: #ffffff;
 }
-
