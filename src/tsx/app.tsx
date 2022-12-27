@@ -20,7 +20,7 @@ class App extends React.Component<{}, State> {
     }
 
     async componentDidMount() {
-        let state = new State();
+        let loggedIn = false;
 
         var dropbox: Dropbox | null = null;
         const system_name = window.localStorage.getItem('auth_app');
@@ -33,7 +33,7 @@ class App extends React.Component<{}, State> {
                         if (dropbox == null) dropbox = new Dropbox();
                         globalThis.system = dropbox;
                         await globalThis.system.auth.Login(access_token, refresh_token);
-                        state.loggedIn = true;
+                        loggedIn = true;
                         break;
                     default:
                         throw Error('Unknown auth_app: ' + system_name);
@@ -43,7 +43,7 @@ class App extends React.Component<{}, State> {
             }
         }
 
-        if (!state.loggedIn) {
+        if (!loggedIn) {
             const queryString = window.location.search; // Returns:'?q=123'// params.get('q') is the number 123
             const params = new URLSearchParams(queryString);
             const oauth_code = params.get('code');
@@ -60,7 +60,7 @@ class App extends React.Component<{}, State> {
                             tokens.access_token as string,
                             tokens.refresh_token as string
                         );
-                        state.loggedIn = true;
+                        loggedIn = true;
                         break;
                     default:
                         throw Error('Uknown login app');
@@ -68,18 +68,20 @@ class App extends React.Component<{}, State> {
             }
         }
 
-        if (state.loggedIn) {
-            await loadDataBase();
-            state.loadedDB = true;
+        if (loggedIn) {
+            loadDataBase().then(() => {
+                this.setState({ loadedDB: true });
+            });
         }
 
-        this.setState(state);
+        this.setState({ loggedIn: loggedIn });
     }
     render() {
-        if (this.state.loggedIn) {
+        if (this.state.loggedIn && this.state.loadedDB) {
             return <Reactions />;
         } else {
-            return <Login dbLoading={!this.state.loadedDB} />;
+            const isDBLoading = this.state.loggedIn && !this.state.loadedDB;
+            return <Login dbLoading={isDBLoading} />;
         }
     }
 }
