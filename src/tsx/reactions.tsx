@@ -70,6 +70,15 @@ export class Reactions extends React.Component {
                 if (!!!file) {
                     const downloadResult = (await globalThis.system?.fs.downloadFile(medium.name)) as DownloadResult;
                     if (!!downloadResult.file && !!downloadResult.file.content) {
+                        switch (downloadResult.file.content.type) {
+                            case 'image/png':
+                            case 'image/gif':
+                            case 'video/mp4':
+                                break;
+                            default:
+                                throw Error('Unknown file type for reaction: ' + downloadResult.file.content.type);
+                        }
+
                         const urlObject = URL.createObjectURL(downloadResult.file.content);
                         const fileCacheObject: MatchingMediumCache = {
                             contentURL: urlObject,
@@ -120,6 +129,14 @@ export class Reactions extends React.Component {
 
     async uploadFileInternal(file: File): Promise<void> {
         if (!!file) {
+            switch (file.type) {
+                case 'image/png':
+                case 'image/gif':
+                case 'video/mp4':
+                    break;
+                default:
+                    throw Error('Wrong file type to upload as reaction: ' + file.type);
+            }
             var result = (await globalThis.system?.fs.uploadFile(
                 '/' + file.name,
                 { content: file },
@@ -162,13 +179,27 @@ export class Reactions extends React.Component {
                 // If dropped items aren't files, reject them
                 if (item.kind === 'file') {
                     const file = item.getAsFile();
-                    if (!!file) this.uploadFileInternal(file);
+                    if (!!file) {
+                        switch (file.type) {
+                            case 'image/png':
+                            case 'image/gif':
+                            case 'video/mp4':
+                                this.uploadFileInternal(file);
+                                break;
+                        }
+                    }
                 }
             });
         } else {
             // Use DataTransfer interface to access the file(s)
             [...ev.dataTransfer.files].forEach((file) => {
-                this.uploadFileInternal(file);
+                switch (file.type) {
+                    case 'image/png':
+                    case 'image/gif':
+                    case 'video/mp4':
+                        this.uploadFileInternal(file);
+                        break;
+                }
             });
         }
     }
@@ -176,9 +207,16 @@ export class Reactions extends React.Component {
     onPaste(ev: React.ClipboardEvent<HTMLDivElement>) {
         let file = ev.clipboardData.files[0];
         if (!!file) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            this.uploadFileInternal(file);
+            console.log(file.type);
+            switch (file.type) {
+                case 'image/png':
+                case 'image/gif':
+                case 'video/mp4':
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    this.uploadFileInternal(file);
+                    break;
+            }
         }
     }
 
