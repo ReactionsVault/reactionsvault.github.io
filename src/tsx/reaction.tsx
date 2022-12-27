@@ -111,7 +111,7 @@ export class Reaction extends React.Component<Props, State> {
                         allowNew
                     />
                 </div>
-                <div className="medium">
+                <div className="medium" style={{ width: '350px' }}>
                     <img src={(this.props as any).img} alt="loading" />
                     <button onClick={this.onDeleteReaction}>Delete</button>
                 </div>
