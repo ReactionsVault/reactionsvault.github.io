@@ -46,6 +46,7 @@ export class Reactions extends React.Component {
         this.onDrop = this.onDrop.bind(this);
         this.onDragOver = this.onDragOver.bind(this);
         this.onDragEnter = this.onDragEnter.bind(this);
+        this.onPast = this.onPast.bind(this);
     }
 
     async updateMatchingMedia(tagsKeys: number[]) {
@@ -68,10 +69,16 @@ export class Reactions extends React.Component {
                         file = urlObject;
                     }
                 }
-                this.matchingMedia.push({
+
+                const matchingMedium: MatchingMedium = {
                     id: mediumID,
                     content: file as string,
-                });
+                };
+                if (medium.tags.length === 1) {
+                    this.matchingMedia.unshift(matchingMedium);
+                } else {
+                    this.matchingMedia.push(matchingMedium);
+                }
                 this.setState((state: State) => {
                     return { matchingMediaVersion: state.matchingMediaVersion + 1 };
                 });
@@ -154,6 +161,15 @@ export class Reactions extends React.Component {
         }
     }
 
+    onPast(ev: React.ClipboardEvent<HTMLDivElement>) {
+        let file = ev.clipboardData.files[0];
+        if (!!file) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            this.uploadFileInternal(file);
+        }
+    }
+
     onSelectTag(tag: TagSuggestion) {
         this.selectedTags.push(tag);
         this.updateMatchingMedia(this.selectedTags.map((tag) => tag.value as number));
@@ -191,7 +207,7 @@ export class Reactions extends React.Component {
             return content;
         };
         return (
-            <div onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragOver={this.onDragOver}>
+            <div onDrop={this.onDrop} onDragEnter={this.onDragEnter} onDragOver={this.onDragOver} onPaste={this.onPast}>
                 <div>
                     <ReactTags
                         onAdd={this.onSelectTag}
