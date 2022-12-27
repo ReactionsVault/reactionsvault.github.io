@@ -234,7 +234,9 @@ export class Reactions extends React.Component {
                         allowBackspace={true}
                         closeOnSelect={true}
                     />
-                    <label htmlFor="add_reaction">Add reaction</label>
+                    <label htmlFor="add_reaction">
+                        <img src="/add_reaction_icon.png" style={{ width: '10%', cursor: 'pointer' }} />
+                    </label>
                     <input
                         ref={this.fileRef}
                         onChange={this.uploadImage}
