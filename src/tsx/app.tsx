@@ -8,16 +8,20 @@ import { loadDataBase } from '../db_common';
 import { Reactions } from './reactions';
 import { Login } from './login';
 
-class App extends React.Component<{}, { loggedIn: Boolean }> {
+class State {
+    loggedIn: boolean = false;
+    loadedDB: boolean = false;
+}
+
+class App extends React.Component<{}, State> {
     constructor(props: any) {
         super(props);
-        this.state = {
-            loggedIn: false,
-        };
+        this.state = new State();
     }
 
     async componentDidMount() {
-        var loggedIn = false;
+        let state = new State();
+
         var dropbox: Dropbox | null = null;
         const system_name = window.localStorage.getItem('auth_app');
         if (!!system_name) {
@@ -29,7 +33,7 @@ class App extends React.Component<{}, { loggedIn: Boolean }> {
                         if (dropbox == null) dropbox = new Dropbox();
                         globalThis.system = dropbox;
                         await globalThis.system.auth.Login(access_token, refresh_token);
-                        loggedIn = true;
+                        state.loggedIn = true;
                         break;
                     default:
                         throw Error('Unknown auth_app: ' + system_name);
@@ -39,7 +43,7 @@ class App extends React.Component<{}, { loggedIn: Boolean }> {
             }
         }
 
-        if (!loggedIn) {
+        if (!state.loggedIn) {
             const queryString = window.location.search; // Returns:'?q=123'// params.get('q') is the number 123
             const params = new URLSearchParams(queryString);
             const oauth_code = params.get('code');
@@ -56,7 +60,7 @@ class App extends React.Component<{}, { loggedIn: Boolean }> {
                             tokens.access_token as string,
                             tokens.refresh_token as string
                         );
-                        loggedIn = true;
+                        state.loggedIn = true;
                         break;
                     default:
                         throw Error('Uknown login app');
@@ -64,17 +68,18 @@ class App extends React.Component<{}, { loggedIn: Boolean }> {
             }
         }
 
-        if (loggedIn) {
-            loadDataBase();
+        if (state.loggedIn) {
+            await loadDataBase();
+            state.loadedDB = true;
         }
 
-        this.setState({ loggedIn: loggedIn });
+        this.setState(state);
     }
     render() {
         if (this.state.loggedIn) {
             return <Reactions />;
         } else {
-            return <Login />;
+            return <Login dbLoading={!this.state.loadedDB} />;
         }
     }
 }
