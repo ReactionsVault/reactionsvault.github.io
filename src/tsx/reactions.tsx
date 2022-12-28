@@ -72,6 +72,7 @@ export class Reactions extends React.Component {
                     if (!!downloadResult.file && !!downloadResult.file.content) {
                         switch (downloadResult.file.content.type) {
                             case 'image/png':
+                            case 'image/jpeg':
                             case 'image/gif':
                             case 'video/mp4':
                                 break;
@@ -131,6 +132,7 @@ export class Reactions extends React.Component {
         if (!!file) {
             switch (file.type) {
                 case 'image/png':
+                case 'image/jpeg':
                 case 'image/gif':
                 case 'video/mp4':
                     break;
@@ -182,6 +184,7 @@ export class Reactions extends React.Component {
                     if (!!file) {
                         switch (file.type) {
                             case 'image/png':
+                            case 'image/jpeg':
                             case 'image/gif':
                             case 'video/mp4':
                                 this.uploadFileInternal(file);
@@ -195,6 +198,7 @@ export class Reactions extends React.Component {
             [...ev.dataTransfer.files].forEach((file) => {
                 switch (file.type) {
                     case 'image/png':
+                    case 'image/jpeg':
                     case 'image/gif':
                     case 'video/mp4':
                         this.uploadFileInternal(file);
@@ -210,6 +214,7 @@ export class Reactions extends React.Component {
             console.log(file.type);
             switch (file.type) {
                 case 'image/png':
+                case 'image/jpeg':
                 case 'image/gif':
                 case 'video/mp4':
                     ev.preventDefault();
