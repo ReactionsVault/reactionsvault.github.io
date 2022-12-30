@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Dropbox } from '../dropbox/dropbox';
 
 class Props {
-    dbLoading: boolean = false;
+    loginEnabled: boolean = false;
 }
 
 export class Login extends React.Component<Props, {}> {
@@ -14,7 +14,7 @@ export class Login extends React.Component<Props, {}> {
 
         return (
             <div>
-                <button id="dropbox-sign-in" onClick={LoginDropbox} disabled={this.props.dbLoading}>
+                <button id="dropbox-sign-in" onClick={LoginDropbox} disabled={!this.props.loginEnabled}>
                     dropbox log in
                 </button>
             </div>

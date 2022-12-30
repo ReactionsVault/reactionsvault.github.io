@@ -47,8 +47,10 @@ class App extends React.Component<{}, State> {
             const queryString = window.location.search; // Returns:'?q=123'// params.get('q') is the number 123
             const params = new URLSearchParams(queryString);
             const oauth_code = params.get('code');
+            const state = params.get('state');
+            window.history.pushState('Remove code from oauth', 'ReactionVault', '/');
             if (!!oauth_code) {
-                switch (params.get('state')) {
+                switch (state) {
                     case DROPBOX_APP:
                         if (dropbox == null) dropbox = new Dropbox();
                         globalThis.system = dropbox;
@@ -81,7 +83,12 @@ class App extends React.Component<{}, State> {
             return <Reactions />;
         } else {
             const isDBLoading = this.state.loggedIn && !this.state.loadedDB;
-            return <Login dbLoading={isDBLoading} />;
+            const hasCredentials = !!window.localStorage.getItem('auth_app');
+
+            const queryString = window.location.search; // Returns:'?q=123'// params.get('q') is the number 123
+            const params = new URLSearchParams(queryString);
+            const loggingIn = !!params.get('code');
+            return <Login loginEnabled={!loggingIn && !hasCredentials && !isDBLoading} />;
         }
     }
 }
