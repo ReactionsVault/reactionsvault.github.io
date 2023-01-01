@@ -1,0 +1,48 @@
+.tags{
+    display: flex;
+    flex-wrap: wrap;
+    overflow: hidden;
+    width: 70%;
+    min-width: 80%;
+    border: 1px rgb(173, 162, 162) solid;
+    border-radius: 5px;
+    color: black;
+}
+
+.single-tag{
+    list-style: none;
+    display: flex;
+    align-items: center;
+    margin: 2px 0 2px 2px;
+    padding: 0px 5px;
+    padding-right: 5px;
+    border: 1.5px solid #3d3d3d;
+    white-space: nowrap;
+    color: #000000;
+    background-color: #999;
+}
+
+.single-tag span{
+    cursor: pointer;
+}
+
+.tags input{
+    border: none;
+    padding: 5px;
+}
+
+.tags input:focus{
+    outline: none;
+}
+
+  .suggestions {
+    position: absolute;
+    z-index: 1;
+    border: 1px solid #999;
+    border-top-width: 0;
+    list-style: none;
+    margin-top: 0;
+    overflow-y: auto;
+    padding-left: 0;
+    width: calc(300px + 1rem);
+  }

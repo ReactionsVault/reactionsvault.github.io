@@ -1,12 +1,10 @@
 import '../css/style.css';
 import * as React from 'react';
-
-import { ReactTags } from 'react-tag-autocomplete';
 import { uploadDataBase } from '../db_common';
-import { TagSuggestion } from 'react-tag-autocomplete';
+import { Tags, TagObject } from './tags';
+
 class State {
-    selectedTagsVersion = 0;
-    tags: TagSuggestion[] = [];
+    selectedTagsVersion: number = 0;
 }
 
 class Props {
@@ -16,27 +14,32 @@ class Props {
     imgFile: Blob | null = null;
 }
 
-function callbackTagsChanged(reaction: Reaction) {
-    reaction.setState(() => {
-        return { tags: Array.from(globalThis.tags.getTags()) };
-    });
-}
-
 export class Reaction extends React.Component<Props, State> {
-    selectedTags: TagSuggestion[] = [];
     videoRef: React.RefObject<HTMLVideoElement>;
+    tagsRef: React.RefObject<Tags>;
+
+    initTags: TagObject[] = [];
 
     constructor(props: any) {
         super(props);
         this.state = new State();
 
         this.videoRef = React.createRef();
+        this.tagsRef = React.createRef();
+
         this.onSelectTag = this.onSelectTag.bind(this);
-        this.onUnselectTag = this.onUnselectTag.bind(this);
+        this.onDeselectTag = this.onDeselectTag.bind(this);
+        this.onCreateTag = this.onCreateTag.bind(this);
         this.onDeleteReaction = this.onDeleteReaction.bind(this);
         this.onClickReaction = this.onClickReaction.bind(this);
         this.onMouseEnterVideo = this.onMouseEnterVideo.bind(this);
         this.onMouseLeaveVideo = this.onMouseLeaveVideo.bind(this);
+    }
+
+    updateSelectedTagsVersion() {
+        this.setState((state: State) => {
+            return { selectedTagsVersion: state.selectedTagsVersion + 1 };
+        });
     }
 
     async onDeleteReaction() {
@@ -49,27 +52,30 @@ export class Reaction extends React.Component<Props, State> {
         if (!!this.props.removeMedium) this.props.removeMedium(this.props.mediumID);
     }
 
-    //input is object for suggestions
-    //new tags value = name
-    async onSelectTag(tag: TagSuggestion) {
-        const isTagNew = tag.value === tag.label;
-        if (isTagNew) {
-            tag.value = await globalThis.db.addTag(tag.label);
-            tag.label = tag.label.toLowerCase();
-        }
-
-        if (isTagNew) {
-            globalThis.tags.addTag(tag);
-        }
-
+    async onSelectTag(tag: TagObject) {
         await globalThis.db.linkTagToMedium(tag.value as number, this.props.mediumID);
         uploadDataBase();
 
-        this.selectedTags.push(tag);
+        this.updateSelectedTagsVersion();
+    }
 
-        this.setState((state: State) => {
-            return { selectedTagsVersion: state.selectedTagsVersion + 1 };
-        });
+    async onDeselectTag(tag: TagObject) {
+        const tagDeleted = await globalThis.db.unlinkTagToMedium(tag.value as number, this.props.mediumID);
+        uploadDataBase();
+
+        if (tagDeleted) {
+            globalThis.tags.removeTag(tag);
+        }
+
+        this.updateSelectedTagsVersion();
+    }
+
+    async onCreateTag(tagName: string): Promise<TagObject | null> {
+        const tagID = await globalThis.db.addTag(tagName);
+        let tag = new TagObject(tagName.toLowerCase(), tagID);
+        globalThis.tags.addTag(tag);
+
+        return tag;
     }
 
     onClickReaction() {
@@ -105,34 +111,17 @@ export class Reaction extends React.Component<Props, State> {
         if (!!this.videoRef.current) this.videoRef.current.muted = true;
     }
 
-    //input is id in selected
-    async onUnselectTag(tagIndex: number) {
-        const tag = this.selectedTags[tagIndex] as TagSuggestion;
-        const tagDeleted = await globalThis.db.unlinkTagToMedium(tag.value as number, this.props.mediumID);
-        uploadDataBase();
-
-        this.selectedTags.splice(tagIndex, 1);
-
-        if (tagDeleted) {
-            globalThis.tags.removeTag(tag);
-        }
-
-        this.setState((state: State) => {
-            return { selectedTagsVersion: state.selectedTagsVersion + 1 };
-        });
-    }
-
     async componentDidMount() {
         const mediumID = this.props.mediumID;
         const mediumTags = await globalThis.db.getMediumTags(mediumID);
         for (let tag of mediumTags) {
             if (tag.name !== '') {
-                this.selectedTags.push({ value: tag.id, label: tag.name });
+                this.initTags.push({ value: tag.id, name: tag.name });
             }
         }
-
-        callbackTagsChanged(this);
-        globalThis.tags.registerCallback(this, callbackTagsChanged);
+        if (this.initTags.length) {
+            this.updateSelectedTagsVersion();
+        }
     }
 
     render() {
@@ -148,14 +137,13 @@ export class Reaction extends React.Component<Props, State> {
         return (
             <div>
                 <div>
-                    <ReactTags
-                        onAdd={this.onSelectTag}
-                        onDelete={this.onUnselectTag}
-                        selected={this.selectedTags}
-                        suggestions={(this.state as State).tags}
-                        allowBackspace
-                        closeOnSelect
-                        allowNew
+                    <Tags
+                        ref={this.tagsRef}
+                        availableTags={globalThis.tags.getTags()}
+                        selectTagCallback={this.onSelectTag}
+                        deselectTagCallback={this.onDeselectTag}
+                        createTagCallback={this.onCreateTag}
+                        initTags={this.initTags}
                     />
                 </div>
                 <div className="medium" style={{ width: '350px' }}>

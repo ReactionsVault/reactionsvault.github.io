@@ -1,9 +1,9 @@
 import { DropboxError, DROPBOX_APP } from './dropbox_common';
 import * as DropboxAPI from 'dropbox';
-import { AuthInterface, AuthData } from '../interfaces/auth_interface';
+import { Authenticate, AuthData } from '../interfaces/auth_interface';
 import { REDIRECT_URI, CLIENT_ID } from './app_dropbox';
 
-export class DropboxAuth implements AuthInterface {
+export class DropboxAuth implements Authenticate {
     private dbxAuth: DropboxAPI.DropboxAuth;
     private dbx: DropboxAPI.Dropbox | null = null;
 
@@ -54,12 +54,13 @@ export class DropboxAuth implements AuthInterface {
 
     async GetOAuthAccessToken(oauth_code: string): Promise<AuthData> {
         var sessionCode = window.sessionStorage.getItem('codeVerifier');
-        if (!!sessionCode) {
-            this.dbxAuth.setCodeVerifier(sessionCode);
-            var login = (await this.dbxAuth.getAccessTokenFromCode(REDIRECT_URI, oauth_code)).result as any;
-            return { access_token: login.access_token, refresh_token: login.refresh_token };
+        if (!!!sessionCode) {
+            throw DropboxError('There is no codeVerifier. Call RequestLogin() first');
         }
-        throw DropboxError('There is no codeVerifier. Call RequestLogin() first');
+
+        this.dbxAuth.setCodeVerifier(sessionCode);
+        var login = (await this.dbxAuth.getAccessTokenFromCode(REDIRECT_URI, oauth_code)).result as any;
+        return { access_token: login.access_token, refresh_token: login.refresh_token };
     }
 
     async Login(access_token: string, refresh_token: string): Promise<void> {
@@ -72,9 +73,7 @@ export class DropboxAuth implements AuthInterface {
         });
 
         var response = await this.dbx.usersGetCurrentAccount();
-        if (!!response?.result.account_id) {
-            return;
-        } else {
+        if (!!!response?.result.account_id) {
             throw DropboxError('Login() failed');
         }
     }
