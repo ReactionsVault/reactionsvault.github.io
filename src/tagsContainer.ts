@@ -1,38 +1,22 @@
-import { TagSuggestion } from 'react-tag-autocomplete';
+import { TagObject } from './tsx/tags';
 
 export class TagsContainer {
-    tags: TagSuggestion[] = [];
-    callbackChange: Map<any, (caller: any) => void> = new Map<any, (caller: any) => void>();
+    tags: TagObject[] = [];
 
-    public getTags(): TagSuggestion[] {
+    public getTags(): TagObject[] {
         return this.tags;
     }
 
-    public registerCallback(caller: any, callback: (caller: any) => void) {
-        this.callbackChange.set(caller, callback);
-    }
-    public unregisterCallback(caller: any) {
-        this.callbackChange.delete(caller);
-    }
-
-    public tagsChanged() {
-        for (let callback of this.callbackChange) {
-            callback[1](callback[0]);
-        }
-    }
-
-    public addTag(tag: TagSuggestion) {
+    public addTag(tag: TagObject) {
         this.tags.push(tag);
-        this.tagsChanged();
     }
 
     public removeTagByID(tagID: number) {
-        const tagArrayID = this.tags.findIndex((testTag: TagSuggestion) => testTag.value === tagID);
+        const tagArrayID = this.tags.findIndex((testTag: TagObject) => testTag.value === tagID);
         this.tags.splice(tagArrayID, 1);
-        this.tagsChanged();
     }
 
-    public removeTag(tag: TagSuggestion) {
+    public removeTag(tag: TagObject) {
         this.removeTagByID(tag.value as number);
     }
 
@@ -41,8 +25,6 @@ export class TagsContainer {
             for (const id of tagsID) {
                 this.removeTagByID(id);
             }
-
-            this.tagsChanged();
         }
     }
 
@@ -51,7 +33,7 @@ export class TagsContainer {
 
         for (let tag of tagsDB) {
             if (tag.name !== '') {
-                this.tags.push({ value: tag.id, label: tag.name });
+                this.tags.push({ value: tag.id, name: tag.name });
             }
         }
     }

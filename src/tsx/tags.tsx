@@ -20,11 +20,11 @@ class Props {
 
     selectTagCallback?: (tag: TagObject) => void;
     deselectTagCallback?: (tag: TagObject) => void;
-    createTagCallback?: (tagName: string) => TagObject;
+    createTagCallback?: (tagName: string) => Promise<TagObject | null>;
 }
 
 class State {
-    usedTagsVersion: number = 0;
+    selectedTagsVersion: number = 0;
     suggestionTagsVersion: number = 0;
     showSuggestions: boolean = false;
 }
@@ -36,33 +36,88 @@ export class Tags extends React.Component<Props, State> {
     selectedTags: TagObject[] = [];
     suggestionTags: TagObject[] = [];
 
-    selectTag(tag: TagObject) {
-        const selectedTagID = this.selectedTags.findIndex((testTag: TagObject) => {
-            return testTag.name === tag?.name;
+    constructor(props: Props) {
+        super(props);
+        this.state = new State();
+
+        this.suggestionsElementRef = React.createRef();
+        this.tagInputElement = React.createRef();
+
+        this.onKeyDown = this.onKeyDown.bind(this);
+        this.onChanage = this.onChanage.bind(this);
+        this.onTagClick = this.onTagClick.bind(this);
+        this.onSuggestionClick = this.onSuggestionClick.bind(this);
+        this.onBlur = this.onBlur.bind(this);
+    }
+
+    hideSuggestions() {
+        this.setState(() => {
+            return { showSuggestions: false };
         });
+    }
 
-        if (selectedTagID === -1) {
-            this.selectedTags.push(tag);
-            if (!!this.props.selectTagCallback) this.props.selectTagCallback(tag);
+    updateSelectedTagsVersion() {
+        this.setState((state: State) => {
+            return { selectedTagsVersion: state.selectedTagsVersion + 1 };
+        });
+    }
 
-            this.setState((state: State) => {
-                return { usedTagsVersion: state.usedTagsVersion + 1 };
-            });
+    selectTag(tag: TagObject) {
+        const selectedTagID = this.selectedTags.indexOf(tag);
+        if (selectedTagID !== -1) {
+            return;
         }
+        this.selectedTags.push(tag);
+        if (!!this.props.selectTagCallback) this.props.selectTagCallback(tag);
+
+        this.updateSelectedTagsVersion();
     }
 
     deselectTag(tag: TagObject) {
         const tagID = this.selectedTags.indexOf(tag);
+        if (tagID === -1) {
+            return;
+        }
+
         this.selectedTags.splice(tagID, 1);
 
         if (!!this.props.deselectTagCallback) this.props.deselectTagCallback(tag);
 
-        this.setState((state: State) => {
-            return { usedTagsVersion: state.usedTagsVersion + 1 };
-        });
+        this.updateSelectedTagsVersion();
     }
 
-    onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    async onSelectKeyDown(inputElement: EventTarget & HTMLInputElement, currentSuggestionIndex: number) {
+        if (inputElement.value === '') {
+            return;
+        }
+
+        var tagToAdd: TagObject | null = null;
+
+        const tagFromSuggestions = currentSuggestionIndex !== -1;
+        if (!tagFromSuggestions) {
+            const tagName = inputElement.value;
+            const tagID = this.props.availableTags.findIndex((tag: TagObject) => {
+                return tag.name === tagName;
+            });
+
+            if (tagID !== -1) {
+                tagToAdd = this.props.availableTags[tagID];
+            } else {
+                if (!!this.props.createTagCallback) tagToAdd = await this.props.createTagCallback(tagName);
+            }
+        } else {
+            tagToAdd = this.suggestionTags[currentSuggestionIndex];
+        }
+
+        if (!!tagToAdd) {
+            this.selectTag(tagToAdd);
+        }
+
+        inputElement.value = '';
+        this.hideSuggestions();
+    }
+
+    async onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
         let inputElement = event.currentTarget;
         const currentSuggestionIndex = !!this.suggestionsElementRef.current
             ? this.suggestionsElementRef.current.selectedIndex
@@ -72,33 +127,7 @@ export class Tags extends React.Component<Props, State> {
             case 'Enter':
             case ' ':
                 event.preventDefault();
-                if (inputElement.value !== '') {
-                    const suggestionSelecting = currentSuggestionIndex !== -1;
-                    var tagToAdd: TagObject | null = null;
-                    if (!suggestionSelecting) {
-                        const tagName = inputElement.value;
-                        const tagID = this.props.availableTags.findIndex((tag: TagObject) => {
-                            return tag.name === tagName;
-                        });
-
-                        if (tagID !== -1) {
-                            tagToAdd = this.props.availableTags[tagID];
-                        } else {
-                            if (!!this.props.createTagCallback) tagToAdd = this.props.createTagCallback(tagName);
-                        }
-                    } else {
-                        tagToAdd = this.suggestionTags[currentSuggestionIndex];
-                    }
-
-                    if (!!tagToAdd) {
-                        this.selectTag(tagToAdd);
-                    }
-
-                    inputElement.value = '';
-                    this.setState(() => {
-                        return { showSuggestions: false };
-                    });
-                }
+                await this.onSelectKeyDown(inputElement, currentSuggestionIndex);
                 break;
             case 'Backspace':
                 if (this.selectedTags.length && !!!inputElement.value) {
@@ -131,61 +160,64 @@ export class Tags extends React.Component<Props, State> {
     }
 
     onSuggestionClick() {
-        if (!!this.suggestionsElementRef.current) {
-            const currentSuggestionIndex = this.suggestionsElementRef.current.selectedIndex;
-            const tag = this.suggestionTags[currentSuggestionIndex];
-            this.selectTag(tag);
-
-            if (!!this.tagInputElement.current) this.tagInputElement.current.value = '';
-
-            this.setState(() => {
-                return { showSuggestions: false };
-            });
+        if (!!!this.suggestionsElementRef.current) {
+            return;
         }
+        const currentSuggestionIndex = this.suggestionsElementRef.current.selectedIndex;
+        const tag = this.suggestionTags[currentSuggestionIndex];
+        this.selectTag(tag);
+
+        if (!!this.tagInputElement.current) this.tagInputElement.current.value = '';
+
+        this.hideSuggestions();
+    }
+
+    tagAlphabeticalSort(a: TagObject, b: TagObject): number {
+        const al = a.name.toLowerCase();
+        const bl = b.name.toLowerCase();
+        if (al < bl) {
+            return -1;
+        }
+        if (al > bl) {
+            return 1;
+        }
+        return 0;
     }
 
     onChanage(event: React.ChangeEvent<HTMLInputElement>) {
         const inputValue = event.currentTarget.value;
-        if (inputValue !== '') {
-            const filteredSuggestions = this.props.availableTags.filter((tag) => {
-                return tag.name.toLowerCase().indexOf(inputValue.toLowerCase()) > -1;
-            });
-            filteredSuggestions.sort((a, b) => {
-                const al = a.name.toLowerCase();
-                const bl = b.name.toLowerCase();
-                if (al < bl) {
-                    return -1;
-                }
-                if (al > bl) {
-                    return 1;
-                }
-                return 0;
-            });
+        if (inputValue === '') {
+            this.hideSuggestions();
+        }
 
-            this.suggestionTags = filteredSuggestions;
+        const filteredSuggestions = this.props.availableTags.filter((tag) => {
+            return tag.name.toLowerCase().indexOf(inputValue.toLowerCase()) > -1;
+        });
+        filteredSuggestions.sort(this.tagAlphabeticalSort);
 
-            this.setState((state: State) => {
-                return { suggestionTagsVersion: state.suggestionTagsVersion + 1, showSuggestions: true };
-            });
-        } else {
-            this.setState(() => {
-                return { showSuggestions: false };
-            });
+        this.suggestionTags = filteredSuggestions;
+
+        this.setState((state: State) => {
+            return { suggestionTagsVersion: state.suggestionTagsVersion + 1, showSuggestions: true };
+        });
+    }
+
+    onBlur(event: React.FocusEvent<HTMLInputElement>) {
+        if (event.relatedTarget?.id !== this.suggestionsElementRef.current?.id) {
+            this.hideSuggestions();
         }
     }
 
-    constructor(props: Props) {
-        super(props);
-        this.state = new State();
-        if (!!props.initTags) this.selectedTags = props.initTags;
+    public getSelectedTags(): TagObject[] {
+        return this.selectedTags;
+    }
 
-        this.suggestionsElementRef = React.createRef();
-        this.tagInputElement = React.createRef();
-
-        this.onKeyDown = this.onKeyDown.bind(this);
-        this.onChanage = this.onChanage.bind(this);
-        this.onTagClick = this.onTagClick.bind(this);
-        this.onSuggestionClick = this.onSuggestionClick.bind(this);
+    componentDidMount() {
+        if (!!!this.props.initTags) {
+            return;
+        }
+        this.selectedTags = this.props.initTags;
+        this.updateSelectedTagsVersion();
     }
 
     render() {
@@ -196,9 +228,10 @@ export class Tags extends React.Component<Props, State> {
                 suggestionsElements = (
                     <select
                         ref={this.suggestionsElementRef}
+                        id="tag_suggestions"
                         className="suggestions"
                         size={5}
-                        onDoubleClick={this.onSuggestionClick}>
+                        onClick={this.onSuggestionClick}>
                         {this.suggestionTags.map((tag, index) => {
                             return (
                                 <option key={index} value={tag.name}>
@@ -210,7 +243,6 @@ export class Tags extends React.Component<Props, State> {
                 );
             }
         }
-
         return (
             <div>
                 <div className="tags">
@@ -224,6 +256,7 @@ export class Tags extends React.Component<Props, State> {
                         type="text"
                         onKeyDown={this.onKeyDown}
                         onChange={this.onChanage}
+                        onBlur={this.onBlur}
                         placeholder="Tag"
                     />
                 </div>

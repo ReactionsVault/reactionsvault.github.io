@@ -1,33 +1,22 @@
 import * as React from 'react';
 import { Reaction } from './reaction';
+import { Tags } from './tags';
+import { TagsContainer } from '../tagsContainer';
 
 import { DownloadResult, FileInfo, FileSystemStatus, FileUploadMode, UploadResult } from '../interfaces/fs_interface';
 import { uploadDataBase } from '../db_common';
-
-import { ReactTags } from 'react-tag-autocomplete';
-
-import { TagsContainer } from '../tagsContainer';
-
-import { TagSuggestion } from 'react-tag-autocomplete';
 
 const SUPPORTED_FORMATS = new Set(['image/png', 'image/jpeg', 'image/gif', 'video/mp4']);
 
 class State {
     matchingMediaVersion = 0;
     selectedTagsVersion = 0;
-    tags: TagSuggestion[] = [];
 }
 
 class MatchingMedium {
     id = -1;
     contentURL = '';
     contentFile: Blob | null = null;
-}
-
-function callbackTagsChanged(reaction: Reactions) {
-    reaction.setState(() => {
-        return { tags: Array.from(globalThis.tags.getTags()) };
-    });
 }
 
 class MatchingMediumCache {
@@ -37,19 +26,21 @@ class MatchingMediumCache {
 
 export class Reactions extends React.Component {
     fileRef: React.RefObject<HTMLInputElement>;
+    tagsRef: React.RefObject<Tags>;
 
     fileCache: Map<string, MatchingMediumCache> = new Map<string, MatchingMediumCache>();
     matchingMedia: MatchingMedium[] = [];
-    selectedTags: TagSuggestion[] = [];
 
     constructor(props: any) {
         super(props);
         this.state = new State();
 
         this.fileRef = React.createRef();
+        this.tagsRef = React.createRef();
+
         this.uploadImage = this.uploadImage.bind(this);
         this.onSelectTag = this.onSelectTag.bind(this);
-        this.onUnselectTag = this.onUnselectTag.bind(this);
+        this.onDeselectTag = this.onDeselectTag.bind(this);
         this.removeMedium = this.removeMedium.bind(this);
         this.onDrop = this.onDrop.bind(this);
         this.onDragOver = this.onDragOver.bind(this);
@@ -107,8 +98,6 @@ export class Reactions extends React.Component {
     async updateAllTagArray() {
         globalThis.tags = new TagsContainer();
         await globalThis.tags.loadTags();
-        globalThis.tags.registerCallback(this, callbackTagsChanged);
-        callbackTagsChanged(this);
     }
 
     async componentDidMount() {
@@ -199,17 +188,21 @@ export class Reactions extends React.Component {
         }
     }
 
-    onSelectTag(tag: TagSuggestion) {
-        this.selectedTags.push(tag);
-        this.updateMatchingMedia(this.selectedTags.map((tag) => tag.value as number));
+    onSelectTag() {
+        const selectedTags = this.tagsRef.current?.getSelectedTags();
+        if (!!!selectedTags) return;
+
+        this.updateMatchingMedia(selectedTags.map((tag) => tag.value as number));
         this.setState((state: State) => {
             return { selectedTagsVersion: state.selectedTagsVersion + 1 };
         });
     }
 
-    onUnselectTag(tagIndex: number) {
-        this.selectedTags.splice(tagIndex, 1);
-        this.updateMatchingMedia(this.selectedTags.map((tag) => tag.value as number));
+    onDeselectTag() {
+        const selectedTags = this.tagsRef.current?.getSelectedTags();
+        if (!!!selectedTags) return;
+
+        this.updateMatchingMedia(selectedTags.map((tag) => tag.value as number));
         this.setState((state: State) => {
             return { selectedTagsVersion: state.selectedTagsVersion + 1 };
         });
@@ -243,13 +236,11 @@ export class Reactions extends React.Component {
                 onDragOver={this.onDragOver}
                 onPaste={this.onPaste}>
                 <div>
-                    <ReactTags
-                        onAdd={this.onSelectTag}
-                        onDelete={this.onUnselectTag}
-                        selected={this.selectedTags}
-                        suggestions={(this.state as State).tags}
-                        allowBackspace={true}
-                        closeOnSelect={true}
+                    <Tags
+                        ref={this.tagsRef}
+                        availableTags={globalThis.tags.getTags()}
+                        selectTagCallback={this.onSelectTag}
+                        deselectTagCallback={this.onDeselectTag}
                     />
                     <label htmlFor="add_reaction">
                         <img src="/add_reaction_icon.png" style={{ width: '10%', cursor: 'pointer' }} />

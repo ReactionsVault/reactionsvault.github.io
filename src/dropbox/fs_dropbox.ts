@@ -1,7 +1,7 @@
 import * as DropboxAPI from 'dropbox';
 import { DropboxError } from './dropbox_common';
 import {
-    FSInterface,
+    FileSystem,
     File,
     FileSystemStatus,
     UploadResult,
@@ -59,7 +59,7 @@ function HandleGetMetadataError(path: string, getMetadataError: DropboxAPI.files
     }
 }
 
-export class DropboxFS implements FSInterface {
+export class DropboxFS implements FileSystem {
     private dbx: DropboxAPI.Dropbox;
     constructor(dbx: DropboxAPI.Dropbox) {
         this.dbx = dbx;
@@ -137,11 +137,10 @@ export class DropboxFS implements FSInterface {
             ).result;
         } catch (error: any) {
             var uploadError = error.error;
-            if (!!uploadError.error) {
-                return { status: HandleUploadError(path, uploadError.error) };
-            } else {
+            if (!!!uploadError.error) {
                 throw DropboxError(uploadError);
             }
+            return { status: HandleUploadError(path, uploadError.error) };
         }
 
         var fileInfo: FileInfo = new FileInfo();
@@ -175,11 +174,10 @@ export class DropboxFS implements FSInterface {
                 .session_id;
         } catch (error: any) {
             var uploadError = error.error;
-            if (!!uploadError.error) {
-                return { status: HandleUploadError(path, uploadError.error) };
-            } else {
+            if (!!!uploadError.error) {
                 throw DropboxError(uploadError);
             }
+            return { status: HandleUploadError(path, uploadError.error) };
         }
 
         try {
@@ -197,11 +195,10 @@ export class DropboxFS implements FSInterface {
             await Promise.all(uploadPromises);
         } catch (error: any) {
             var uploadError = error.error;
-            if (!!uploadError.error) {
-                return { status: HandleUploadError(path, uploadError.error) };
-            } else {
+            if (!!!uploadError.error) {
                 throw DropboxError(uploadError);
             }
+            return { status: HandleUploadError(path, uploadError.error) };
         }
 
         try {
@@ -216,11 +213,10 @@ export class DropboxFS implements FSInterface {
             ).result;
         } catch (error: any) {
             var uploadError = error;
-            if (!!uploadError.error) {
-                return { status: HandleUploadError(path, uploadError.error) };
-            } else {
+            if (!!!uploadError.error) {
                 throw DropboxError(uploadError);
             }
+            return { status: HandleUploadError(path, uploadError.error) };
         }
 
         var fileInfo: FileInfo = new FileInfo();
@@ -264,11 +260,10 @@ export class DropboxFS implements FSInterface {
             var respond = await this.dbx.filesDownload({ path: path });
         } catch (error: any) {
             var downloadError = error.error;
-            if (!!downloadError.error) {
-                return { status: HandleDownloadError(path, downloadError.error) }; // promise returns DropboxResponseError<Error<files.DownloadError>> (there is a mistake in index.d.ts)
-            } else {
+            if (!!!downloadError.error) {
                 throw DropboxError(downloadError);
             }
+            return { status: HandleDownloadError(path, downloadError.error) }; // promise returns DropboxResponseError<Error<files.DownloadError>> (there is a mistake in index.d.ts)
         }
 
         const fileMeta = respond.result as any;
@@ -311,20 +306,18 @@ export class DropboxFS implements FSInterface {
             fileMeta = (await this.dbx.filesGetMetadata({ path: path })).result as DropboxAPI.files.FileMetadata;
         } catch (error: any) {
             var getMetadataError = error.error;
-            if (getMetadataError.error) {
-                HandleGetMetadataError(path, getMetadataError.error);
-            } else {
+            if (!getMetadataError.error) {
                 throw DropboxError(getMetadataError);
             }
+            HandleGetMetadataError(path, getMetadataError.error);
         }
 
-        if (!!fileMeta?.content_hash) {
-            return fileMeta.content_hash;
-        } else {
+        if (!!!fileMeta?.content_hash) {
             throw DropboxError({
                 status: FileSystemStatus.NotFound,
                 message: 'getFileHash: no hash for file "' + path + '"',
             });
         }
+        return fileMeta.content_hash;
     }
 }

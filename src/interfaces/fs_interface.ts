@@ -27,7 +27,7 @@ export class DownloadResult {
     file?: File;
     fileInfo?: FileInfo;
 }
-export interface FSInterface {
+export interface FileSystem {
     calculateFileHash(file: File): Promise<string>;
     getFileHash(path: string): Promise<string>; // return file's hash from server as string
     uploadFile(path: string, file: File, mode: FileUploadMode): Promise<UploadResult>;
