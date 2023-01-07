@@ -46,7 +46,7 @@ export class Tags extends React.Component<Props, State> {
         this.onKeyDown = this.onKeyDown.bind(this);
         this.onChanage = this.onChanage.bind(this);
         this.onTagClick = this.onTagClick.bind(this);
-        this.onSuggestionClick = this.onSuggestionClick.bind(this);
+        this.onSuggestionChange = this.onSuggestionChange.bind(this);
         this.onBlur = this.onBlur.bind(this);
     }
 
@@ -159,11 +159,16 @@ export class Tags extends React.Component<Props, State> {
         if (!!tag) this.deselectTag(tag);
     }
 
-    onSuggestionClick() {
+    onSuggestionChange() {
         if (!!!this.suggestionsElementRef.current) {
             return;
         }
+
         const currentSuggestionIndex = this.suggestionsElementRef.current.selectedIndex;
+        if (currentSuggestionIndex === -1) {
+            return;
+        }
+
         const tag = this.suggestionTags[currentSuggestionIndex];
         this.selectTag(tag);
 
@@ -231,7 +236,7 @@ export class Tags extends React.Component<Props, State> {
                         id="tag_suggestions"
                         className="suggestions"
                         size={5}
-                        onClick={this.onSuggestionClick}>
+                        onChange={this.onSuggestionChange}>
                         {this.suggestionTags.map((tag, index) => {
                             return (
                                 <option key={index} value={tag.name}>
